@@ -1,0 +1,27 @@
+<div class="container-lg p-4">
+    <div class="menu-container">
+        <ul class="nav nav-tabs">
+            <li class="nav-item me-4">
+                <a class="nav-link" routerLinkActive="active" routerLink="/"
+                   [routerLinkActiveOptions]="{ exact: true }">
+                    <i class="fas fa-globe-americas"></i>
+                    Overview
+                </a>
+            </li>
+            <li class="nav-item" *ngFor="let vault of vaults">
+                <a class="nav-link" routerLinkActive="active" [routerLink]="'/account/' + vault.from">
+                    <i class="fas fa-wallet"></i>
+                    {{ vault.name }}
+                </a>
+            </li>
+            <li class="nav-item ms-4">
+                <a class="nav-link" routerLinkActive="active" routerLink="/stake-unlock">
+                    <i class="fas fa-lock-open"></i>
+                    Stake Unlock
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <router-outlet></router-outlet>
+</div>

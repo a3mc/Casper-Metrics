@@ -1,0 +1,70 @@
+<div class="mt-5 card review p-5">
+    <div class="card-body validators">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Total Locked</th>
+                    <th>Total Unlocked</th>
+                    <th>Unlocked in 90 days</th>
+                    <th>Unlocked in 1 year</th>
+                    <th>Days from Genesis</th>
+                </tr>
+                <tr>
+                    <th>{{ locked | number:'1.0-2' }}</th>
+                    <th>0</th>
+                    <th>
+                        {{ locked - unlock365 | number:'1.0-2' }}
+                    </th>
+                    <th>
+                        <input [(ngModel)]="unlock365" (ngModelChange)="unlock90 = locked - unlock365">
+                    </th>
+                    <th>0</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="text-muted">
+                    <td>{{ locked | number:'1.0-2' }}</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>{{ unlock365 | number:'1.0-2' }}</td>
+                    <td>89</td>
+                </tr>
+            </tbody>
+            <tbody>
+                <tr *ngFor="let unlockDate of [1,2,3,4,5,6,7,8,9,10,11,12,13,14]"
+                    [class.text-bold]="unlockDate === 14">
+                    <td>{{ locked - ( unlock90 / 14 * unlockDate ) | number:'1.0-2' }}</td>
+                    <td>{{ unlock90 / 14 * unlockDate | number:'1.0-2' }}</td>
+                    <td>{{ unlock90 / 14 | number:'1.0-2' }}</td>
+                    <td>0</td>
+                    <td>{{ 89 + unlockDate }}</td>
+                </tr>
+            </tbody>
+            <tbody>
+                <tr class="text-bold">
+                    <td>0</td>
+                    <td>{{ locked - unlock90 | number:'1.0-2'}}</td>
+                    <td>0</td>
+                    <td>{{ locked - unlock90 | number:'1.0-2' }}</td>
+                    <td>365</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="pt-4 right">
+            <div class="alert" *ngIf="message"
+                 [class.alert-info]="!message.type"
+                 [class.alert-success]="message.type === 'success'"
+                 [class.alert-warning]="message.type === 'warning'"
+                 [class.alert-danger]="message.type === 'error'">
+                {{ message.text }}
+            </div>
+            <button class="btn btn-lg btn-success"
+                    [class.btn-disabled]="isSaving"
+                    [disabled]="isSaving"
+                    (click)="save()">
+                Save
+            </button>
+        </div>
+    </div>
+</div>
+

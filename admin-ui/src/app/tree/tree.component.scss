@@ -1,0 +1,8 @@
+.tree {
+    height: 100%;
+    width: 100%;
+    svg .node {
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+}

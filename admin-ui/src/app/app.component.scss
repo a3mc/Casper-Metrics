@@ -1,0 +1,37 @@
+.menu-container {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 62px;
+    padding-top: 20px;
+    background: #ccd3c7;
+    .nav {
+        justify-content: center;
+    }
+    .nav-item {
+        .nav-link {
+            cursor: pointer;
+        }
+        a, a:active, a:visited {
+            color: #333;
+        }
+        a:hover {
+            color: #445;
+        }
+        a.active {
+            background-color: #e8ebe5;
+            border-color: #cfd3cb #cfd3cb #e8ebe5;
+        }
+        .fas {
+            font-size: 0.63em;
+            position: relative;
+            top: -1px;
+            color: #76806f;
+        }
+    }
+}
+.tree-container {
+    margin-top: 60px;
+    transition: height 0.4s ease;
+}
