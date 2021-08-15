@@ -31,11 +31,11 @@ npm ci
 You may want to edit environment file to set your preferred ports.
 Create a .env file in the root directory and set up your MySQL and Telegram (optional) credentials. There's an example.env file you can copy and edit.
 
-####For production mode:
+### For production mode:
 
 `npm run migrate && npm run build:prod && pm2 reload ecosystem.config.js`
 
-####For development mode:
+### For development mode:
 
 `npm run migrate && npm run build && pm2 reload ecosystem.config.js`
 
