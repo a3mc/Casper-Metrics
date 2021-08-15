@@ -6,14 +6,14 @@ There is an asynchronous crawler that collects data from RPC servers. There's a 
 Swagger interface for the endpoints can give some insight on the data structure and how to make queries.
 Admin part is a separate app that makes requests to the protected API. It has possibilities to find and approve transactions that were unlocked as well as changing the amount of locked Validators.
 
-## Install dependencies
+## Prerequisites
 
 Please make sure you have the following installed:
 
 - Nginx
-- MySQL 8+
 - PM2
 - Node 16+
+- MySQL 8+
 - Redis
 
 ```sh
@@ -28,12 +28,20 @@ npm ci
 
 ## Run the application
 
-You may want to edit environment files to set your preferred ports.
-Set up your MySQL credentials in datasources/metrics-db.datasource.ts
+You may want to edit environment file to set your preferred ports.
+Create a .env file in the root directory and set up your MySQL and Telegram (optional) credentials. There's an example.env file you can copy and edit.
 
-For development mode omit :prod.
+####For production mode:
 
-npm run migrate && npm run build:prod && pm2 reload ecosystem.config.js
+`npm run migrate && npm run build:prod && pm2 reload ecosystem.config.js`
+
+####For development mode:
+
+`npm run migrate && npm run build && pm2 reload ecosystem.config.js`
+
+There's an environment file additionally to .env, that you don't need to change to run the project, but if you wish to alter something there it can be found in `environments` directory. When you you build the project in production mode it uses prod file, and when in dev - dev file. TODO: some settings will be moved to .env to simply the setup.
+
+Application needs a reverse proxy to be set for to ports, set it environment.ts file. One is used for the public front, and another for admin. The latter needs to be protected.
 
 ## Rebuild the project
 
@@ -49,10 +57,19 @@ To force a full build by cleaning up cached artifacts:
 npm run rebuild
 ```
 
+## Running on a clean database
+
+On the first run, crawler will use 4 processes to asyncronously parse blocks and transactions starting from genesis. This may consume some resource. You can adjust the crawling speed my launching less/more processed or by adjusting parallel limit of each process. See `_parallelLimit` in workers/crawler.worker.ts
+
+## Regular operation
+
+When database is crawled, only new blocks get indexed. That doesn't cosume any significant resources. TODO: The number of connected RPC servers will be adjusted for regular routine crawling.
+
 ## Other useful commands
 
 - `npm run migrate`: Migrate database schemas for models
-- `npm run migrate:erase`: Erase and migrate database schemas for models
+- `npm run migrate:erase`: Erase and migrate dev database schemas for models
+- `npm run migrate:erase:prod`: Erase and migrate production database schemas for models
 
 ## Tests
 
@@ -63,16 +80,39 @@ npm run test
 ## Structure
 
 There are two webapps, one for the public frontend and another is for admin panel.
-You can find admin panel code in /admin-ui
+Admin part consists of admin enpoints API and a frontend. You can find admin panel code in /admin-ui
 It's a sub-project written in Angular. Please run inside the folder:
+
+[Please note that admin app is presented here as a Milestone 2 part]
 
 Admin UI has to be served under protected domain. Currently, Basic Http Auth is used to protect it.
 Both Frontend and Admin parts expose their API endpoints.
 
-`npm install && npm run build
-`
+From the admin-ui directory run the following:
 
-## Working Front version
+`npm install && npm run build`
+
+Admin part is supposed to be protected with Basic Http Auth for now. Web auth with JWT token will be presented in the upcoming update.
+
+## Security considerations
+
+Public Frontend part is a read-only app, so unless there's anything that can compromise db access, it should be safe. Nevertheless, please kindly report any issues or doubts in the Github sections of this repository and they'll be addressed ASAP.
+
+Admin part is much more sensitive, as it allows writing to db. Currently the solution was to use BASIC-HTTP-AUTH to cover its enpoints and the interface to prevent any possible security holes. A more sofisticated auth is in the development and will be released after the testing stage.
+
+## Documentation
+
+Most of the code is self-explanatory, and swagger interfaces can give you some insight how to work with the enpoints. But we are preparing full documentation that will be release as a part of Milestone 3.
+
+## Contributing
+
+You are welcome to add your suggestions and to contribute to the project. Please create a PR against develop branch and it will be reviewed shortly.
+
+## License
+
+This project is licensed under MIT.
+
+## Working Front version example
 
 https://cspr.rpc.best/explorer/
 

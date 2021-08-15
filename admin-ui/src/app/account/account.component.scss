@@ -75,6 +75,12 @@ tr.active {
         }
     }
 
+    .per-page {
+        margin-left: 20px;
+        width: 80px;
+        padding: 3px;
+    }
+
     .block-height-cell,
     .checkbox-cell {
         width: 1%;
@@ -101,7 +107,7 @@ tr.active {
         margin-left: 20px;
     }
 
-    tfoot {
+    tfoot.total {
         font-weight: bold;
     }
 }

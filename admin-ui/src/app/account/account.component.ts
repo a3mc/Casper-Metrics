@@ -11,6 +11,12 @@ export interface Message {
     text: string
 }
 
+export interface TransfersResponse {
+    totalItems: number,
+    approvedItems: number;
+    data: any[];
+}
+
 @Component( {
     selector: 'app-account',
     templateUrl: './account.component.html',
@@ -33,6 +39,12 @@ export class AccountComponent implements OnInit {
     public message: Message;
     public isSaving = false;
     public showTable = false;
+    public page = 1;
+    public totalItems = 0;
+    public perPage = 50;
+    public totalApproved = 0;
+    public allTransferSum = 0;
+
     private _connectedTransactions;
 
     constructor(
@@ -42,6 +54,9 @@ export class AccountComponent implements OnInit {
     }
 
     ngOnInit(): void {
+        this.page = 0;
+        this.totalApproved = 0;
+        this.totalItems = 0;
         this.route.paramMap.subscribe( ( params ) => {
             this.reset();
             this.vaults.forEach( vault => {
@@ -58,20 +73,39 @@ export class AccountComponent implements OnInit {
         } );
     }
 
+    public pageChanged( page ): void {
+        this.page = page;
+        if ( this.tab === 'inbound' ) {
+            this.setInbound();
+        }
+        if ( this.tab === 'outbound' ) {
+            this.setOutbound();
+        }
+        if ( this.tab === 'approved' ) {
+            this.approvedTransfers();
+        }
+    }
+
+    public perPageChanged(): void {
+        this.page = 1;
+        this.pageChanged( this.page );
+    }
+
     public showTree(): void {
         this.data = null;
         this._apiClientService.get(
-            'transfers?from=' + this.activeVault.from
+            'transfers'
         )
             .pipe( take( 1 ) )
             .subscribe( ( result: any ) => {
 
-                this.allTransfers = result;
-                let children = result.filter( transfer => transfer.from === this.activeVault.from );
+                this.allTransfers = result.data;
+
+                let children = result.data.filter( transfer => transfer.from === this.activeVault.from );
                 if ( children?.length ) {
                     this.activeVault.children = this._getChildren( children );
                     this.activeVault.children.forEach( transfer => {
-                        const innerChildren = result.filter(
+                        const innerChildren = result.data.filter(
                             childTransfer => childTransfer.fromHash === transfer.toHash
                         );
                         if ( innerChildren?.length ) {
@@ -85,12 +119,14 @@ export class AccountComponent implements OnInit {
 
     public approvedTransfers() {
         this._apiClientService.get(
-            'transfers?approved=1'
+            'transfers?approved=1' + '&perPage=' + this.perPage + '&page=' + this.page
         )
             .pipe( take( 1 ) )
             .subscribe( ( result: any ) => {
-
-                this.allTransfers = result;
+                this.totalItems = result.totalItems.count;
+                this.totalApproved = result.approvedSum;
+                this.allTransfers = result.data;
+                this.allTransferSum = result.totalSum;
                 this.editTransfers( this.allTransfers, 'approved' )
             } );
 
@@ -98,6 +134,9 @@ export class AccountComponent implements OnInit {
 
     public selectNode( nodePair ): void {
         if ( !nodePair[0] || !nodePair[1] ) return;
+        this.totalItems = 0;
+        this.totalApproved = 0;
+        this.page = 0;
         if ( nodePair[0] === nodePair[1] ) {
             const vault = this.vaults.find( vault => vault.fromHash === nodePair[0] );
             this.setInbound( vault );
@@ -168,11 +207,14 @@ export class AccountComponent implements OnInit {
         this.tab = 'inbound';
         this.selectOnlyNode( [this.account.fromHash, this.account.toHash] );
         this._apiClientService.get(
-            'transfers?toHash=' + this.account.toHash
+            'transfers?toHash=' + this.account.toHash + '&perPage=' + this.perPage + '&page=' + this.page
         )
             .pipe( take( 1 ) )
             .subscribe( ( result: any ) => {
-                this.editTransfers( result, 'inbound' );
+                this.totalItems = result.totalItems.count;
+                this.totalApproved = result.approvedSum;
+                this.allTransferSum = result.totalSum;
+                this.editTransfers( result.data, 'inbound' );
             } );
     }
 
@@ -180,21 +222,26 @@ export class AccountComponent implements OnInit {
         this.selectOnlyNode( [this.account.fromHash, this.account.toHash] );
         this.tab = 'outbound';
         this._apiClientService.get(
-            'transfers?fromHash=' + this.account.toHash
+            'transfers?fromHash=' + this.account.toHash + '&perPage=' + this.perPage + '&page=' + this.page
         )
             .pipe( take( 1 ) )
             .subscribe( ( result: any ) => {
-                this.editTransfers( result, 'outbound' );
+                this.totalItems = result.totalItems.count;
+                this.totalApproved = result.approvedSum;
+                this.allTransferSum = result.totalSum;
+                this.editTransfers( result.data, 'outbound' );
             } );
     }
 
     public countSelected(): number {
-        return this.transfers.filter( transfer => transfer.selected )
-            .reduce( ( a, b ) => a + b.amount / 1000000000, 0 );
+        return ( this.tab !== 'previous' ? this.totalApproved : 0 ) +
+            this.transfers.filter( transfer => transfer.selected )
+                .reduce( ( a, b ) => a + b.amount / 1000000000, 0 );
     }
 
     public countApproved(): number {
-        return this.transfers.filter( transfer => transfer.approved )
+        return ( this.tab !== 'previous' ? this.totalApproved : 0 )
+            + this.transfers.filter( transfer => transfer.approved )
             .reduce( ( a, b ) => a + b.amount / 1000000000, 0 );
     }
 
@@ -243,6 +290,10 @@ export class AccountComponent implements OnInit {
         this.transfers = transfers;
         this.transfers.forEach( transfer => {
             transfer.selected = transfer.approved;
+            this.totalApproved -= transfer.approved ? transfer.amount / 1000000000 : 0;
+            if ( this.totalApproved < 0 ) {
+                this.totalApproved = 0;
+            }
         } );
         this.allSelected = this.transfers.every( transfer => transfer.selected );
         this.transfersSum = transfers.reduce( ( a, b ) => a + b.amount / 1000000000, 0 );

@@ -2,6 +2,8 @@ const winston = require( 'winston' );
 const { format } = require( 'winston' );
 const { combine, timestamp, prettyPrint, splat } = format;
 const TelegramLogger = require( 'winston-telegram' );
+import dotenv from 'dotenv';
+dotenv.config();
 
 export const logger = winston.createLogger( {
     level: 'info',
@@ -18,11 +20,13 @@ export const logger = winston.createLogger( {
     ],
 } );
 
-// logger.add( new TelegramLogger( {
-//     level: 'error',
-//     token: 'YOUR TOKEN',
-//     chatId: 'CHAT ID'
-// } ) );
+if ( process.env.TG_TOKEN && process.env.TG_CHAT_ID ) {
+    logger.add( new TelegramLogger( {
+        level: 'error',
+        token: process.env.TG_TOKEN,
+        chatId: process.env.TG_CHAT_ID
+    } ) );
+}
 
 if ( process.env.NODE_ENV !== 'production' ) {
     logger.add( new winston.transports.Console( {

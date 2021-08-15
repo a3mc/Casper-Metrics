@@ -19,6 +19,7 @@ import { ClipboardModule } from 'ngx-clipboard';
 import { StakeUnlockComponent } from './stake-unlock/stake-unlock.component';
 import { AccountComponent } from './account/account.component';
 import { OverviewComponent } from './overview/overview.component';
+import { NgxPaginationModule } from 'ngx-pagination';
 
 @NgModule( {
     declarations: [
@@ -41,7 +42,10 @@ import { OverviewComponent } from './overview/overview.component';
         ReactiveFormsModule,
         MatDatepickerModule,
         MatInputModule,
-        NgxMatNativeDateModule
+        NgxMatNativeDateModule,
+        NgxPaginationModule,
+        CommonModule,
+        BrowserModule
     ],
     providers: [
         ApiClientService

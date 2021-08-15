@@ -1,15 +1,17 @@
 import { inject, lifeCycleObserver, LifeCycleObserver } from '@loopback/core';
 import { juggler } from '@loopback/repository';
-import { environment } from "../environments/environment";
+import { environment } from '../environments/environment';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const config = {
     name: 'metricsDB',
     connector: 'mysql',
     url: '',
     host: 'localhost',
-    port: 3306,
-    user: 'USER',
-    password: 'PASSWORD',
+    port: process.env.MYSQL_PORT,
+    user: process.env.MYSQL_USER,
+    password: process.env.MYSQL_PASSWORD,
     database: environment.database,
     supportBigNumbers: true,
     connectTimeout: 120000,

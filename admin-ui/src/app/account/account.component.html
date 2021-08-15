@@ -18,7 +18,7 @@
         </h3>
         <ul class="nav nav-tabs">
             <li class="nav-item" *ngIf="!this.isGenesisAccount">
-                <a class="nav-link" (click)="setFromPrevious()" [class.active]="tab === 'previous'">
+                <a class="nav-link" (click)="page = 1;setFromPrevious()" [class.active]="tab === 'previous'">
                     From {{
                     account.name ||
                     account.from ? account.from?.substr(0, 4) + '&hellip;' +
@@ -29,12 +29,12 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link to" (click)="setInbound()" [class.active]="tab === 'inbound'">
+                <a class="nav-link to" (click)="page = 1; setInbound()" [class.active]="tab === 'inbound'">
                     All Inbound
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link from" (click)="setOutbound()" [class.active]="tab === 'outbound'">
+                <a class="nav-link from" (click)="page = 1; setOutbound()" [class.active]="tab === 'outbound'">
                     All Outbound
                 </a>
             </li>
@@ -48,12 +48,14 @@
                 </div>
                 <div class="ms-3">
                     Hex: {{ account.from || 'Unknown' }}
-                    <i ngxClipboard (cbOnSuccess)="copied($event)"  cbContent="{{ account.from }}" *ngIf="account.from" class="far fa-clipboard"></i>
+                    <i ngxClipboard (cbOnSuccess)="copied($event)" cbContent="{{ account.from }}" *ngIf="account.from"
+                       class="far fa-clipboard"></i>
                 </div>
                 <div class="ms-3">
                     <i class="text-muted small">
                         ( {{ account.fromHash }}
-                        <i ngxClipboard (cbOnSuccess)="copied($event)"  cbContent="{{ account.fromHash }}" class="far fa-clipboard"></i>
+                        <i ngxClipboard (cbOnSuccess)="copied($event)" cbContent="{{ account.fromHash }}"
+                           class="far fa-clipboard"></i>
                         )
                     </i>
                 </div>
@@ -62,12 +64,14 @@
                 </div>
                 <div class="ms-3">
                     Hex: {{ account.to || 'Unknown' }}
-                    <i ngxClipboard (cbOnSuccess)="copied($event)"  cbContent="{{ account.to }}" *ngIf="account.to" class="far fa-clipboard"></i>
+                    <i ngxClipboard (cbOnSuccess)="copied($event)" cbContent="{{ account.to }}" *ngIf="account.to"
+                       class="far fa-clipboard"></i>
                 </div>
                 <div class="ms-3">
                     <i class="text-muted small">
                         ( {{ account.toHash }}
-                        <i ngxClipboard (cbOnSuccess)="copied($event)"  cbContent="{{ account.toHash }}" class="far fa-clipboard"></i> )
+                        <i ngxClipboard (cbOnSuccess)="copied($event)" cbContent="{{ account.toHash }}"
+                           class="far fa-clipboard"></i> )
                     </i>
                 </div>
             </div>
@@ -77,12 +81,14 @@
                 </div>
                 <div class="ms-3">
                     Hex: {{ account.to || 'Unknown' }}
-                    <i ngxClipboard (cbOnSuccess)="copied($event)"  cbContent="{{ account.to }}" *ngIf="account.to" class="far fa-clipboard"></i>
+                    <i ngxClipboard (cbOnSuccess)="copied($event)" cbContent="{{ account.to }}" *ngIf="account.to"
+                       class="far fa-clipboard"></i>
                 </div>
                 <div class="ms-3">
                     <i class="text-muted small">
                         ( {{ account.toHash }}
-                        <i ngxClipboard (cbOnSuccess)="copied($event)"  cbContent="{{ account.toHash }}" class="far fa-clipboard"></i> )
+                        <i ngxClipboard (cbOnSuccess)="copied($event)" cbContent="{{ account.toHash }}"
+                           class="far fa-clipboard"></i> )
                     </i>
                 </div>
             </div>
@@ -92,12 +98,14 @@
                 </div>
                 <div class="ms-3">
                     Hex: {{ account.to || 'Unknown' }}
-                    <i ngxClipboard (cbOnSuccess)="copied($event)"  cbContent="{{ account.to }}" *ngIf="account.to" class="far fa-clipboard"></i>
+                    <i ngxClipboard (cbOnSuccess)="copied($event)" cbContent="{{ account.to }}" *ngIf="account.to"
+                       class="far fa-clipboard"></i>
                 </div>
                 <div class="ms-3">
                     <i class="text-muted small">
                         ( {{ account.toHash }}
-                        <i ngxClipboard (cbOnSuccess)="copied($event)"  cbContent="{{ account.toHash }}" class="far fa-clipboard"></i> )
+                        <i ngxClipboard (cbOnSuccess)="copied($event)" cbContent="{{ account.toHash }}"
+                           class="far fa-clipboard"></i> )
                     </i>
                 </div>
             </div>
@@ -120,35 +128,38 @@
             </tr>
             </thead>
             <tbody>
-            <tr *ngFor="let transfer of transfers; let i = index">
+            <tr *ngFor="let transfer of transfers|
+                paginate: { itemsPerPage: perPage, currentPage: page, totalItems: totalItems, id: 'pagination' };
+                let i = index">
                 <td class="checkbox-cell">
                     <input type="checkbox" [(ngModel)]="transfer.selected">
                 </td>
                 <td>{{ transfer.blockHeight }}</td>
                 <td>{{ transfer.timestamp | date: 'medium' }}</td>
                 <td>
-                    {{ transfer.deployHash.substr( 0, 8 ) + '&hellip;' + transfer.deployHash.substr( -8, 8 ) }}
-                    <i ngxClipboard (cbOnSuccess)="copied($event)"  cbContent="{{ transfer.deployHash }}" class="far fa-clipboard"></i>
+                    {{ transfer.deployHash.substr(0, 8) + '&hellip;' + transfer.deployHash.substr(-8, 8) }}
+                    <i ngxClipboard (cbOnSuccess)="copied($event)" cbContent="{{ transfer.deployHash }}"
+                       class="far fa-clipboard"></i>
                 </td>
                 <td *ngIf="tab === 'inbound' || tab === 'approved'">
                         <span *ngIf="transfer.from">
-                            {{ transfer.from.substr( 0, 8 ) + '&hellip;' + transfer.from.substr( -8, 8 ) }}
+                            {{ transfer.from.substr(0, 8) + '&hellip;' + transfer.from.substr(-8, 8) }}
                         </span>
                     <span *ngIf="!transfer.from">
-                             {{ transfer.fromHash.substr( 0, 17 ) + '&hellip;' + transfer.fromHash.substr( -4, 4 ) }}
+                             {{ transfer.fromHash.substr(0, 17) + '&hellip;' + transfer.fromHash.substr(-4, 4) }}
                         </span>
 
-                    <i ngxClipboard (cbOnSuccess)="copied($event)"  cbContent="{{ transfer.from || transfer.fromHash }}"
+                    <i ngxClipboard (cbOnSuccess)="copied($event)" cbContent="{{ transfer.from || transfer.fromHash }}"
                        class="far fa-clipboard"></i>
                 </td>
                 <td *ngIf="tab === 'outbound' || tab === 'approved'">
                          <span *ngIf="transfer.to">
-                            {{ transfer.to.substr( 0, 8 ) + '&hellip;' + transfer.to.substr( -8, 8 ) }}
+                            {{ transfer.to.substr(0, 8) + '&hellip;' + transfer.to.substr(-8, 8) }}
                          </span>
                     <span *ngIf="!transfer.to">
-                            {{ transfer.toHash.substr( 0, 17 ) + '&hellip;' + transfer.toHash.substr( -4, 4 ) }}
+                            {{ transfer.toHash.substr(0, 17) + '&hellip;' + transfer.toHash.substr(-4, 4) }}
                          </span>
-                    <i ngxClipboard (cbOnSuccess)="copied($event)"  cbContent="{{ transfer.to || transfer.toHash }}"
+                    <i ngxClipboard (cbOnSuccess)="copied($event)" cbContent="{{ transfer.to || transfer.toHash }}"
                        class="far fa-clipboard"></i>
                 </td>
                 <td class="right amount-cell">
@@ -156,20 +167,78 @@
                 </td>
             </tr>
             </tbody>
-            <tfoot>
+            <tbody *ngIf="totalItems > perPage && tab !== 'previous'" class="text-muted">
             <tr>
-                <td [attr.colspan]="tab === 'previous' ? 4 : tab === 'approved' ? 6 : 5" class="right">Total (CSPR):</td>
-                <td class="right">{{ transfersSum | number:'1.0-2' }}</td>
+                <th [attr.colspan]="tab === 'approved' ? 6 : 5" class="right">
+                    <b>THIS PAGE</b>
+                </th>
+                <td></td>
+            </tr>
+            <tr>
+                <td [attr.colspan]="tab === 'approved' ? 6 : 5" class="right">
+                    Total (CSPR):
+                </td>
+                <td class="right">{{ transfersSum | number:'1.0-0' }}</td>
             </tr>
             <tr>
 
                 <td [attr.colspan]="tab === 'previous' ? 4 : tab === 'approved' ? 6 : 5" class="right">
                     Include in Circulating Supply (CSPR):
                 </td>
-                <td class="right">{{ countSelected() | number:'1.0-2' }}</td>
+                <td class="right">{{ countSelected() | number:'1.0-0' }}</td>
+            </tr>
+            </tbody>
+            <tfoot class="total">
+            <tr *ngIf="totalItems > perPage && tab !== 'previous'">
+                <th [attr.colspan]="tab === 'approved' ? 6 : 5" class="right">
+                    <b>TOTAL</b>
+                </th>
+                <td></td>
+            </tr>
+            <tr>
+                <td [attr.colspan]="tab === 'previous' ? 4 : tab === 'approved' ? 6 : 5" class="right">
+                    Total (CSPR):
+                </td>
+                <td class="right">{{ ( tab !== 'previous' ? allTransferSum : transfersSum ) | number:'1.0-0' }}</td>
+            </tr>
+            <tr>
+
+                <td [attr.colspan]="tab === 'previous' ? 4 : tab === 'approved' ? 6 : 5" class="right">
+                    Include in Circulating Supply (CSPR):
+                </td>
+                <td class="right">{{ countSelected() | number:'1.0-0' }}</td>
             </tr>
             </tfoot>
         </table>
+        <div class="row" *ngIf="totalItems > perPage && tab !== 'previous'">
+            <div class="col-sm-4 form-group pt-4">
+                <label>Per page</label>
+                <select name="per-page" class="per-page" [(ngModel)]="perPage" (change)="perPageChanged()">
+                    <option value="15">15</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="500">500</option>
+                    <option value="1000">1000</option>
+                </select>
+            </div>
+            <div class="col-sm-8 pt-4 right">
+                <pagination-controls id="pagination"
+                                     (pageChange)="pageChanged( $event )"
+                                     (pageBoundsCorrection)="pageChanged( $event )"
+                                     maxSize="9"
+                                     directionLinks="true"
+                                     autoHide="true"
+                                     responsive="true"
+                                     previousLabel="Previous"
+                                     nextLabel="Next"
+                                     screenReaderPaginationLabel="Pagination"
+                                     screenReaderPageLabel="page"
+                                     screenReaderCurrentLabel="You're on page">
+                </pagination-controls>
+            </div>
+        </div>
+
         <div class="pt-4 right">
             <div class="alert" *ngIf="message"
                  [class.alert-info]="!message.type"

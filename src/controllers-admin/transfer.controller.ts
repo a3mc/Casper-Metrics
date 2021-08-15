@@ -1,9 +1,11 @@
 import { Count, CountSchema, repository, Where, } from '@loopback/repository';
-import { del, get, getModelSchemaRef, param, post, put, requestBody, response, } from '@loopback/rest';
+import { get, getModelSchemaRef, param, post, response, } from '@loopback/rest';
 import { Transfer } from '../models';
 import { BlockRepository, CirculatingRepository, EraRepository, TransferRepository } from '../repositories';
 import { service } from "@loopback/core";
 import { CirculatingService } from "../services";
+
+const clone = require( 'node-clone-js' )
 
 export class TransferController {
     constructor(
@@ -47,7 +49,9 @@ export class TransferController {
         @param.query.string( 'toHash' ) toHash?: string,
         @param.query.string( 'fromHash' ) fromHash?: string,
         @param.query.string( 'approved' ) approved?: string,
-    ): Promise<Transfer[]> {
+        @param.query.number( 'perPage' ) perPage?: number,
+        @param.query.number( 'page' ) page?: number,
+    ): Promise<any> {
         let filter: any = {
             where: {
                 and: [
@@ -77,7 +81,34 @@ export class TransferController {
                 }
             };
         }
-        return await this.transferRepository.find( filter );
+
+        const allFilter = clone( filter );
+        const approvedFilter = clone( filter );
+        approvedFilter.where.approved = true;
+
+        if ( perPage && page ) {
+            filter.limit = perPage;
+            filter.skip = perPage * ( page - 1 )
+        }
+
+        const data = await this.transferRepository.find( filter );
+
+        const approvedItems = await this.transferRepository.find( approvedFilter );
+        let approvedSum = approvedItems.reduce( ( a, b ) => {
+            return a + BigInt( b.amount );
+        }, BigInt( 0 ) );
+
+        const allData = await this.transferRepository.find( allFilter );
+        let totalSum = allData.reduce( ( a, b ) => {
+            return a + BigInt( b.amount );
+        }, BigInt( 0 ) );
+
+        return {
+            totalItems: await this.transferRepository.count( filter.where ),
+            approvedSum: Number( approvedSum / BigInt( 1000000000 ) ),
+            totalSum: Number( totalSum / BigInt( 1000000000 ) ),
+            data: data
+        };
     }
 
     @post( '/api/transfers/approve' )
