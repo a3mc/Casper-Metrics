@@ -22,8 +22,9 @@
     "eslint": "lb-eslint --report-unused-disable-directives .",
     "eslint:fix": "npm run eslint -- --fix",
     "pretest": "npm run rebuild",
+    "pretest:prod": "npm run rebuild:prod",
     "test": "lb-mocha --allow-console-logs \"dist/__tests__\"",
-    "test:dev": "lb-mocha --allow-console-logs dist/__tests__/**/*.js && npm run posttest",
+    "test:prod": "lb-mocha --allow-console-logs dist/__tests__/**/*.js",
     "docker:build": "docker build -t casper-metrics .",
     "docker:run": "docker run -p 3000:3000 -d casper-metrics",
     "premigrate": "npm run build",
@@ -35,7 +36,8 @@
     "prestart": "npm run rebuild",
     "start": "node -r source-map-support/register .",
     "clean": "lb-clean dist *.tsbuildinfo .eslintcache",
-    "rebuild": "npm run clean && npm run build"
+    "rebuild": "npm run clean && npm run build",
+    "rebuild:prod": "npm run clean && npm run build:prod"
   },
   "repository": {
     "type": "git",

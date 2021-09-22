@@ -16,6 +16,11 @@ Please make sure you have the following installed:
 - MySQL 8+
 - Redis
 
+Please pre-create two database, one for dev and for production environment:
+metrics (prod) and metricsdev (dev). The exact db names can be configured.
+
+Database structure will be created when running 'migrate' commands.
+
 ```sh
 npm install
 ```
@@ -43,6 +48,14 @@ There's an environment file additionally to .env, that you don't need to change 
 
 Application needs a reverse proxy to be set for to ports, set it environment.ts file. One is used for the public front, and another for admin. The latter needs to be protected.
 
+## URLs to access the application
+
+Ports are specified in the environment configuration files.
+By default the prod build will open the front page on http://localhost:3000 and the admin panel on http://localhost:3004.
+Dev environment uses 3002 and 3003 ports respectively.
+
+It's supposed to forward these ports to external ports using NGINX (or another) reverse-proxy. THat's not required during testing or development.
+
 ## Rebuild the project
 
 To incrementally build the project:
@@ -50,11 +63,19 @@ To incrementally build the project:
 ```sh
 npm run build
 ```
+OR:
+```sh
+npm run build:prod
+```
 
 To force a full build by cleaning up cached artifacts:
 
 ```sh
 npm run rebuild
+```
+OR:
+```sh
+npm run rebuild:prod
 ```
 
 ## Running on a clean database
@@ -73,8 +94,16 @@ When database is crawled, only new blocks get indexed. That doesn't cosume any s
 
 ## Tests
 
+As acceptance tests require the database to be filled with data, please make sure indexing and calculation is complete.
+You may run on either DEV or PROD env.
+
+To run tests using DEV environment:
 ```sh
 npm run test
+```
+To run tests using PROD environment:
+```sh
+npm run test:prod
 ```
 
 ## Structure

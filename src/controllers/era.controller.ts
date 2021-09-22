@@ -23,15 +23,15 @@ export class EraController {
     async circulating(
         @param.query.number( 'eraId' ) id?: number,
     ): Promise<string> {
-        let filter: Filter<Era> = {
-            limit: 1,
-            order: ['id DESC'],
-            skip: id === undefined ? 0 : 1
-        };
+        let filter: Filter<Era> = {};
         if ( id !== undefined ) {
             filter.where = {
                 id: id,
             };
+        } else {
+            filter.order = ['id DESC'],
+            filter.skip = 1;
+            filter.limit = 1;
         }
         const lastRecord = await this.eraRepository.findOne( filter )
             .catch( error => {
@@ -55,19 +55,19 @@ export class EraController {
     async total(
         @param.query.number( 'eraId' ) id?: number,
     ): Promise<string> {
-        let filter: Filter<Era> = {
-            limit: 1,
-            order: ['id DESC'],
-            skip: id === undefined ? 0 : 1
-        };
+        let filter: Filter<Era> = {};
         if ( id !== undefined ) {
             filter.where = {
                 id: id,
             };
+        } else {
+            filter.order = ['id DESC'],
+            filter.skip = 1;
+            filter.limit = 1;
         }
+
         const lastRecord = await this.eraRepository.findOne( filter )
-            .catch( error => {
-            } );
+            .catch( error => {} );
 
         if ( !lastRecord ) {
             throw new NotFound();
