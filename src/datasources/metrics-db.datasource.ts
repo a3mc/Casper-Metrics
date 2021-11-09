@@ -8,15 +8,15 @@ const config = {
     name: 'metricsDB',
     connector: 'mysql',
     url: '',
-    host: 'localhost',
+    host: process.env.MYSQL_HOST,
     port: process.env.MYSQL_PORT,
     user: process.env.MYSQL_USER,
     password: process.env.MYSQL_PASSWORD,
     database: environment.database,
     supportBigNumbers: true,
-    connectTimeout: 120000,
-    acquireTimeout: 120000,
-    connectionLimit: 200,
+    connectTimeout: 20000,//120000,
+    acquireTimeout: 20000,//120000,
+    connectionLimit: 3, //200,
 };
 
 // Observe application's life cycle to disconnect the datasource when

@@ -10,7 +10,7 @@ export interface BlockStakeInfo {
     undelegated: bigint;
 }
 
-@lifeCycleObserver()
+//@lifeCycleObserver()
 export class CrawlerController {
     private lastCalculated: number;
     private queuedBlocks: number;
