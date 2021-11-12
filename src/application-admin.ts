@@ -18,15 +18,15 @@ export class ApplicationAdmin extends BootMixin(
         this.sequence( MyAdminSequence );
 
         // Set up default home page
-        this.static( '/', path.join( __dirname, '../dist-admin' ) );
-        this.static( '/css', path.join( __dirname, '../public/css' ) );
+        //this.static( '/', path.join( __dirname, '../dist-admin' ) );
+        //this.static( '/css', path.join( __dirname, '../public/css' ) );
 
         // Customize @loopback/rest-explorer configuration here
         this.configure( RestExplorerBindings.COMPONENT ).to( {
-            path: '/explorer',
-            swaggerThemeFile: '/css/swagger.css',
-            useSelfHostedSpec: false,
-            // indexTemplatePath: path.resolve( __dirname, '../explorer/index.html.ejs' ),
+            //path: '/explorer',
+            //swaggerThemeFile: '/css/swagger.css',
+            useSelfHostedSpec: true,
+            indexTemplatePath: '',
         } );
         this.component( RestExplorerComponent );
 
