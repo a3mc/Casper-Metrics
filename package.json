@@ -1,19 +1,20 @@
 {
   "name": "Casper Metrics",
-  "version": "0.1.4",
+  "version": "0.2.1",
   "description": "Public API for general Casper metrics",
   "keywords": [
     "casper"
   ],
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist-mainnet/index.js",
+  "types": "dist-mainnet/index.d.ts",
   "engines": {
     "node": ">=16.1"
   },
   "scripts": {
-    "build": "lb-tsc && cp dist/environments/mainnet-dev.environment.js dist/environments/environment.js",
-    "build:prod": "lb-tsc && cp dist/environments/mainnet-prod.environment.js dist/environments/environment.js",
-    "build:watch": "lb-tsc --watch",
+    "build": "npm run build:test && npm run build:prod",
+    "build:test": "lb-tsc --outDir dist-testnet && cp dist-testnet/environments/mainnet-dev.environment.js dist-testnet/environments/environment.js",
+    "build:prod": "lb-tsc --outDir dist-mainnet && cp dist-mainnet/environments/mainnet-prod.environment.js dist-mainnet/environments/environment.js",
+    "start:api": "pm2 start ecosystem.config.js",
     "lint": "npm run eslint && npm run prettier:check",
     "lint:fix": "npm run eslint:fix && npm run prettier:fix",
     "prettier:cli": "lb-prettier \"**/*.ts\" \"**/*.js\"",

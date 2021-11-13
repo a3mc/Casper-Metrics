@@ -18,14 +18,14 @@ export class CasperMetricsApplication extends BootMixin(
         this.sequence( MySequence );
 
         // Set up default home page
-        this.static( '/css', path.join( __dirname, '../public/css' ) );
+        //this.static( '/css', path.join( __dirname, '../public/css' ) );
 
         // Customize @loopback/rest-explorer configuration here
         this.configure( RestExplorerBindings.COMPONENT ).to( {
-            path: '/explorer',
-            swaggerThemeFile: '/css/swagger.css',
-            useSelfHostedSpec: false,
-            indexTemplatePath: path.resolve( __dirname, '../explorer/index.html.ejs' ),
+            //path: '/openapi/ui',
+            //swaggerThemeFile: '/css/swagger.css',
+            useSelfHostedSpec: true,
+            indexTemplatePath: '',
         } );
         this.component( RestExplorerComponent );
 

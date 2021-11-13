@@ -44,7 +44,8 @@ if ( require.main === module ) {
             gracePeriodForClose: 5000, // 5 seconds
             openApiSpec: {
                 // useful when used with OpenAPI-to-GraphQL to locate your application
-                setServersFromRequest: false,
+                setServersFromRequest: true,
+                disabled: true,
             },
             expressSettings: {
                 'x-powered-by': false,
@@ -70,7 +71,8 @@ if ( require.main === module ) {
             gracePeriodForClose: 5000, // 5 seconds
             openApiSpec: {
                 // useful when used with OpenAPI-to-GraphQL to locate your application
-                setServersFromRequest: false,
+                setServersFromRequest: true,
+                disabled: true,
             },
             expressSettings: {
                 'x-powered-by': false,
