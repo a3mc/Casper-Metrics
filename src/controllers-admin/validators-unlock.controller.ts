@@ -2,7 +2,7 @@ import { repository, } from '@loopback/repository';
 import { get, getModelSchemaRef, param, post, response, } from '@loopback/rest';
 import { ValidatorsUnlock } from '../models';
 import { ValidatorsUnlockConstantsRepository, ValidatorsUnlockRepository } from '../repositories';
-import { environment } from "../environments/environment";
+import { networks } from "../configs/networks";
 import moment from 'moment';
 import { service } from "@loopback/core";
 import { CirculatingService } from "../services";
@@ -29,7 +29,7 @@ export class ValidatorsUnlockController {
         await this.validatorsUnlockConstantsRepository.deleteAll();
 
         const unlock365 = BigInt( amount ) * BigInt( 1000000000 );
-        const unlock90 = BigInt( environment.genesis_validators_weights_total ) * BigInt( 1000000000 ) - unlock365;
+        const unlock90 = BigInt( networks.genesis_validators_weights_total ) * BigInt( 1000000000 ) - unlock365;
 
         await this.validatorsUnlockConstantsRepository.create( {
             unlock90: unlock90.toString(),
@@ -75,13 +75,13 @@ export class ValidatorsUnlockController {
             await this.validatorsUnlockRepository.create( {
                 amount: ( ( BigInt( validatorsUnlockConstants.unlock90 ) / BigInt( 14 ) ) ).toString(),
                 day: 90 + day,
-                timestamp: moment( environment.genesis_timestamp ).add( 90 + day, 'days' ).toISOString()
+                timestamp: moment( networks.genesis_timestamp ).add( 90 + day, 'days' ).toISOString()
             } );
         }
         await this.validatorsUnlockRepository.create( {
             amount: ( BigInt( validatorsUnlockConstants.unlock365 ) ).toString(),
             day: 365,
-            timestamp: moment( environment.genesis_timestamp ).add( 365, 'days' ).toISOString()
+            timestamp: moment( networks.genesis_timestamp ).add( 365, 'days' ).toISOString()
         } );
 
         await this.circulatingService.calculateCirculatingSupply();
