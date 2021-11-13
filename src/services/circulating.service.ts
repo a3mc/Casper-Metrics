@@ -9,7 +9,7 @@ import {
 } from "../repositories";
 import { Circulating, Era, ValidatorsUnlock } from "../models";
 import moment from "moment";
-import { environment } from "../environments/environment";
+import { networks } from "../configs/networks";
 
 @injectable( { scope: BindingScope.TRANSIENT } )
 export class CirculatingService {
@@ -69,9 +69,9 @@ export class CirculatingService {
         }, BigInt( 0 ) );
 
 
-        const allRewards = Number( era.totalSupply ) - environment.genesis_total_supply;
+        const allRewards = Number( era.totalSupply ) - networks.genesis_total_supply;
         let circulatingSupplyDenominated = Number( circulatingSupply / BigInt( 1000000000 ) );
-        const releasedRewards = allRewards * ( circulatingSupplyDenominated / environment.genesis_total_supply );
+        const releasedRewards = allRewards * ( circulatingSupplyDenominated / networks.genesis_total_supply );
         circulatingSupplyDenominated += releasedRewards;
 
         await this.eraRepository.updateById( era.id, {

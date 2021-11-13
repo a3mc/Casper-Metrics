@@ -2,7 +2,7 @@
 
 Purpose of this application is to serve accurate metrics data crawled and analysed from Casper Blockchain.
 
-There is an asynchronous crawler that collects data from RPC servers. There's a list of 30 servers in the environment files that you can modify. By default, it uses a cluster of 4 workers, each making requests to this servers.
+There is an asynchronous crawler that collects data from RPC servers. There's a list of 30 servers in the networks files that you can modify. By default, it uses a cluster of 4 workers, each making requests to this servers.
 Swagger interface for the endpoints can give some insight on the data structure and how to make queries.
 Admin part is a separate app that makes requests to the protected API. It has possibilities to find and approve transactions that were unlocked as well as changing the amount of locked Validators.
 
@@ -16,7 +16,7 @@ Please make sure you have the following installed:
 - MySQL 8+
 - Redis
 
-Please pre-create two database, one for dev and for production environment:
+Please pre-create two database, one for dev and for production networks:
 metrics (prod) and metricsdev (dev). The exact db names can be configured.
 
 Database structure will be created when running 'migrate' commands.
@@ -33,7 +33,7 @@ npm ci
 
 ## Run the application
 
-You may want to edit environment file to set your preferred ports.
+You may want to edit networks file to set your preferred ports.
 Create a .env file in the root directory and set up your MySQL and Telegram (optional) credentials. There's an example.env file you can copy and edit.
 
 ### For production mode:
@@ -44,15 +44,15 @@ Create a .env file in the root directory and set up your MySQL and Telegram (opt
 
 `npm run migrate && npm run build && pm2 reload ecosystem.config.js`
 
-There's an environment file additionally to .env, that you don't need to change to run the project, but if you wish to alter something there it can be found in `environments` directory. When you you build the project in production mode it uses prod file, and when in dev - dev file. TODO: some settings will be moved to .env to simply the setup.
+There's an networks file additionally to .env, that you don't need to change to run the project, but if you wish to alter something there it can be found in `environments` directory. When you you build the project in production mode it uses prod file, and when in dev - dev file. TODO: some settings will be moved to .env to simply the setup.
 
-Application needs a reverse proxy to be set for to ports, set it environment.ts file. One is used for the public front, and another for admin. The latter needs to be protected.
+Application needs a reverse proxy to be set for to ports, set it networks.ts file. One is used for the public front, and another for admin. The latter needs to be protected.
 
 ## URLs to access the application
 
-Ports are specified in the environment configuration files.
+Ports are specified in the networks configuration files.
 By default the prod build will open the front page on http://localhost:3000 and the admin panel on http://localhost:3004.
-Dev environment uses 3002 and 3003 ports respectively.
+Dev networks uses 3002 and 3003 ports respectively.
 
 It's supposed to forward these ports to external ports using NGINX (or another) reverse-proxy. THat's not required during testing or development.
 
@@ -97,11 +97,11 @@ When database is crawled, only new blocks get indexed. That doesn't cosume any s
 As acceptance tests require the database to be filled with data, please make sure indexing and calculation is complete.
 You may run on either DEV or PROD env.
 
-To run tests using DEV environment:
+To run tests using DEV networks:
 ```sh
 npm run test
 ```
-To run tests using PROD environment:
+To run tests using PROD networks:
 ```sh
 npm run test:prod
 ```

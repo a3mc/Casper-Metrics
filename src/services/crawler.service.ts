@@ -3,7 +3,7 @@ import { logger } from '../logger';
 import { CasperServiceByJsonRPC, PublicKey } from 'casper-client-sdk';
 import { BlockStakeInfo } from '../controllers';
 import { Block, Era, Transfer } from '../models';
-import { environment } from '../environments/environment';
+import { networks } from '../configs/networks';
 import { repository } from '@loopback/repository';
 import {
     BlockRepository,
@@ -41,8 +41,8 @@ export class CrawlerService {
 
     public async getLastBlockHeight(): Promise<number> {
         this._casperServices = [];
-        logger.info( 'Trying to init %d nodes', environment.rpc_nodes.length );
-        for ( const node of environment.rpc_nodes ) {
+        logger.info( 'Trying to init %d nodes', networks.rpc_nodes.length );
+        for ( const node of networks.rpc_nodes ) {
             const casperServiceSet: CasperServiceSet = {
                 node: new CasperServiceByJsonRPC(
                     'http://' + node + ':7777/rpc'
@@ -55,14 +55,14 @@ export class CrawlerService {
             } catch ( error ) {
                 logger.warn( 'Failed to init Casper Node %s', node );
                 logger.warn( error );
-                environment.rpc_nodes.splice( environment.rpc_nodes.indexOf( node ), 1 );
+                networks.rpc_nodes.splice( networks.rpc_nodes.indexOf( node ), 1 );
                 continue;
             }
 
             try {
                 casperServiceSet.lastBlock = blockInfo.block.header.height;
             } catch ( error ) {
-                environment.rpc_nodes.splice( environment.rpc_nodes.indexOf( node ), 1 );
+                networks.rpc_nodes.splice( networks.rpc_nodes.indexOf( node ), 1 );
                 continue;
             }
             this._casperServices.push( casperServiceSet );
@@ -202,7 +202,7 @@ export class CrawlerService {
 
             for ( const transfer of blockTransfers ) {
                 let depth = 0;
-                if ( environment.locked_wallets.includes( transfer.from.toUpperCase() ) ) {
+                if ( networks.locked_wallets.includes( transfer.from.toUpperCase() ) ) {
                     depth = 1;
                 } else {
                     const foundTransfer: Transfer | null | void = await this.transferRepository.findOne( {
@@ -400,7 +400,7 @@ export class CrawlerService {
             stakedThisEra: BigInt( 0 ),
             startBlock: 0,
             start: block.timestamp,
-            validatorsWeights: BigInt( environment.genesis_validators_weights_total ),
+            validatorsWeights: BigInt( networks.genesis_validators_weights_total ),
             validatorsRewards: BigInt( 0 ),
             delegatorsRewards: BigInt( 0 ),
             validatorsCount: 0,
@@ -413,7 +413,7 @@ export class CrawlerService {
     private async _getTotalSupply( stateRootHash: string ): Promise<bigint> {
         const blockState: any = await this._casperService().getBlockState(
             stateRootHash,
-            environment.contract_uref,
+            networks.contract_uref,
             []
         ).catch( error => {
             logger.error( error );
