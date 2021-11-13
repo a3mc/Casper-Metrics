@@ -25,10 +25,19 @@ export class MyAdminSequence implements SequenceHandler {
         try {
             // First we try to find a matching route in the api
             const { request, response } = context;
-            const route = this.findRoute( request );
-            const args = await this.parseParams( request, route );
-            const result = await this.invoke( route, args );
-            this.send( response, result );
+
+            response.header('Access-Control-Allow-Origin', '*');
+            response.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+
+            if (request.method == 'OPTIONS') {
+                response.status(200)
+                this.send(response, 'ok');
+            } else {
+                const route = this.findRoute( request );
+                const args = await this.parseParams( request, route );
+                const result = await this.invoke( route, args );
+                this.send( response, result );
+            }
         } catch ( err ) {
             if ( err.statusCode === 404 ) {
                 context.response.sendFile( 'dist-admin/index.html', { root: './' } )
