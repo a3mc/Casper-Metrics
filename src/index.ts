@@ -75,6 +75,13 @@ if ( require.main === module ) {
                     env: 'production',
                 },
                 basePath: '/',
+                cors: {
+                    origin: '*',
+                    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+                    preflightContinue: false,
+                    optionsSuccessStatus: 204,
+                    //credentials: true,
+                },
             },
         };
         admin( adminConfig ).catch( err => {
