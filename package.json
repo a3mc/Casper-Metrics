@@ -5,15 +5,13 @@
   "keywords": [
     "casper"
   ],
-  "main": "dist-mainnet/index.js",
-  "types": "dist-mainnet/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "engines": {
     "node": ">=16.1"
   },
   "scripts": {
-    "build": "npm run build:test && npm run build:prod",
-    "build:test": "lb-tsc --outDir dist-testnet && cp dist-testnet/environments/mainnet-dev.environment.js dist-testnet/environments/environment.js",
-    "build:prod": "lb-tsc --outDir dist-mainnet && cp dist-mainnet/environments/mainnet-prod.environment.js dist-mainnet/environments/environment.js",
+    "build": "lb-tsc",
     "start:api": "pm2 start ecosystem.config.js",
     "lint": "npm run eslint && npm run prettier:check",
     "lint:fix": "npm run eslint:fix && npm run prettier:fix",
@@ -35,7 +33,6 @@
     "preopenapi-spec": "npm run build",
     "openapi-spec": "node ./dist/openapi-spec",
     "prestart": "npm run rebuild",
-    "start": "node -r source-map-support/register .",
     "clean": "lb-clean dist *.tsbuildinfo .eslintcache",
     "rebuild": "npm run clean && npm run build",
     "rebuild:prod": "npm run clean && npm run build:prod"

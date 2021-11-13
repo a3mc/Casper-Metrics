@@ -8,7 +8,7 @@ const httpOptions = {
 
 @Injectable()
 export class ApiClientService {
-    private _baseUrl = '/api/';
+    private _baseUrl = 'http://3.124.189.139:3002/api/';
 
     constructor(
         private _httpClient: HttpClient

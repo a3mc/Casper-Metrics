@@ -2,7 +2,8 @@ import { BindingScope, injectable } from '@loopback/core';
 import * as redis from 'redis';
 import { promisify } from 'util';
 import { RedisClient } from "redis";
-import { environment } from "../environments/environment";
+import dotenv from 'dotenv';
+dotenv.config();
 
 export interface RedisClientSet {
     client: RedisClient;
@@ -26,7 +27,7 @@ export class RedisService {
     }
 
     private _createClient(): RedisClientSet {
-        const client = redis.createClient( { db: environment.redis_database} );
+        const client = redis.createClient( { db: process.env.REDIS_DB || 1 } );
         return {
             client: client,
             getAsync: promisify( client.get ).bind( client ),
