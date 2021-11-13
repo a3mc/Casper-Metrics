@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "lb-tsc",
-    "start:api": "pm2 start ecosystem.config.js --only api",
+    "start:api": "pm2 start ecosystem.config.js",
     "lint": "npm run eslint && npm run prettier:check",
     "lint:fix": "npm run eslint:fix && npm run prettier:fix",
     "prettier:cli": "lb-prettier \"**/*.ts\" \"**/*.js\"",

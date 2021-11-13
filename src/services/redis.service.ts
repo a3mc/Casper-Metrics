@@ -2,6 +2,8 @@ import { BindingScope, injectable } from '@loopback/core';
 import * as redis from 'redis';
 import { promisify } from 'util';
 import { RedisClient } from "redis";
+import dotenv from 'dotenv';
+dotenv.config();
 
 export interface RedisClientSet {
     client: RedisClient;

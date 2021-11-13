@@ -3,6 +3,8 @@ import { juggler } from '@loopback/repository';
 import dotenv from 'dotenv';
 dotenv.config();
 
+console.log(process.env.DATABASE)
+
 const config = {
     name: 'metricsDB',
     connector: 'mysql',

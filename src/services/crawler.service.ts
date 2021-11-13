@@ -16,6 +16,8 @@ import { Client, HTTPTransport, RequestManager } from '@open-rpc/client-js';
 import { RedisService } from './redis.service';
 import moment from 'moment';
 import { CirculatingService } from "./circulating.service";
+import dotenv from 'dotenv';
+dotenv.config();
 
 export interface CasperServiceSet {
     lastBlock?: number;

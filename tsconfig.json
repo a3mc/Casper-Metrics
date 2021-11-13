@@ -3,8 +3,17 @@
   "extends": "@loopback/build/config/tsconfig.common.json",
   "compilerOptions": {
     "experimentalDecorators": true,
+    "rootDir": "src",
+    "sourceMap": false,
+    "declaration": true,
+    "importHelpers": true,
     "outDir": "dist",
-    "rootDir": "src"
+    "emitDecoratorMetadata": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "incremental": false
   },
   "include": ["src"]
 }

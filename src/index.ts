@@ -1,6 +1,8 @@
 import { ApplicationConfig, CasperMetricsApplication } from './application';
 import { ApplicationAdmin } from './application-admin';
 import { logger } from './logger';
+import dotenv from 'dotenv';
+dotenv.config();
 
 export * from './application';
 export * from './application-admin';
@@ -11,7 +13,7 @@ export async function main( options: ApplicationConfig = {} ) {
     await app.start();
 
     const url = app.restServer.url;
-    logger.info( `Public API Server is running at ${ url }` );
+    console.log( `Public API Server is running at ${ url }` );
 
     return app;
 }
@@ -22,7 +24,7 @@ export async function admin( options: ApplicationConfig = {} ) {
     await app.start();
 
     const url = app.restServer.url;
-    logger.info( `Admin API Server is running at ${ url }` );
+    console.log( `Admin API Server is running at ${ url }` );
 
     return app;
 }
