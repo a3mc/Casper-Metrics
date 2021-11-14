@@ -1,150 +1,105 @@
 import {
-  Count,
-  CountSchema,
-  Filter,
-  FilterExcludingWhere,
-  repository,
-  Where,
+    Count,
+    CountSchema,
+    Filter,
+    FilterExcludingWhere,
+    repository,
+    Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
-  get,
-  getModelSchemaRef,
-  patch,
-  put,
-  del,
-  requestBody,
-  response,
+    post,
+    param,
+    get,
+    getModelSchemaRef,
+    patch,
+    put,
+    del,
+    requestBody,
+    response,
 } from '@loopback/rest';
-import {User} from '../models';
-import {UserRepository} from '../repositories';
+import { User } from '../models';
+import { UserRepository } from '../repositories';
+import { inject } from '@loopback/core';
 
 export class UserController {
-  constructor(
-    @repository(UserRepository)
-    public userRepository : UserRepository,
-  ) {}
+    constructor(
+        @repository( UserRepository )
+        public userRepository: UserRepository,
+        @inject( PasswordHasherBindings.PASSWORD_HASHER )
+        public hasher: BcryptHasher
+    ) {
+    }
 
-  @post('/users')
-  @response(200, {
-    description: 'User model instance',
-    content: {'application/json': {schema: getModelSchemaRef(User)}},
-  })
-  async create(
-    @requestBody({
-      content: {
-        'application/json': {
-          schema: getModelSchemaRef(User, {
-            title: 'NewUser',
-            exclude: ['id'],
-          }),
-        },
-      },
-    })
-    user: Omit<User, 'id'>,
-  ): Promise<User> {
-    return this.userRepository.create(user);
-  }
+    @post( '/auth', {
+        responses: {
+            '200': {
+                description: 'Token',
+                content: {
+                    'application/json': {
+                        schema: {
+                            type: 'object',
+                            properties: {
+                                token: {
+                                    type: 'string'
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } )
+    async login(
+        @requestBody( {
+            content: {
+                'application/json': {
+                    schema: {
+                        type: 'object',
+                        properties: {
+                            email: {
+                                type: 'string'
+                            },
+                            password: {
+                                type: 'string'
+                            },
+                        }
+                    }
+                }
+            }
+        } ) credentials: any
+    ): Promise<any> {
+        const user = await this.verifyCredentials( credentials );
 
-  @get('/users/count')
-  @response(200, {
-    description: 'User model count',
-    content: {'application/json': {schema: CountSchema}},
-  })
-  async count(
-    @param.where(User) where?: Where<User>,
-  ): Promise<Count> {
-    return this.userRepository.count(where);
-  }
+        const dbUser = await this.userRepository.findOne( { where: { id: user.id } } )
+        if ( !dbUser ) {
+            throw new Error( 'User not found.' );
+        }
 
-  @get('/users')
-  @response(200, {
-    description: 'Array of User model instances',
-    content: {
-      'application/json': {
-        schema: {
-          type: 'array',
-          items: getModelSchemaRef(User, {includeRelations: true}),
-        },
-      },
-    },
-  })
-  async find(
-    @param.filter(User) filter?: Filter<User>,
-  ): Promise<User[]> {
-    return this.userRepository.find(filter);
-  }
+        const userProfile = await this.userService.convertToUserProfile( user );
+        const token = await this.jwtService.generateToken( userProfile );
+        userProfile.token = token;
+        userProfile.balance = dbUser.tokens;
+        userProfile.egldAddress = dbUser.egldAddress;
 
-  @patch('/users')
-  @response(200, {
-    description: 'User PATCH success count',
-    content: {'application/json': {schema: CountSchema}},
-  })
-  async updateAll(
-    @requestBody({
-      content: {
-        'application/json': {
-          schema: getModelSchemaRef(User, {partial: true}),
-        },
-      },
-    })
-    user: User,
-    @param.where(User) where?: Where<User>,
-  ): Promise<Count> {
-    return this.userRepository.updateAll(user, where);
-  }
+        //userProfile.balance = String( await WalletController.getUserBalance( user.innerAddress ) );
 
-  @get('/users/{id}')
-  @response(200, {
-    description: 'User model instance',
-    content: {
-      'application/json': {
-        schema: getModelSchemaRef(User, {includeRelations: true}),
-      },
-    },
-  })
-  async findById(
-    @param.path.number('id') id: number,
-    @param.filter(User, {exclude: 'where'}) filter?: FilterExcludingWhere<User>
-  ): Promise<User> {
-    return this.userRepository.findById(id, filter);
-  }
+        return userProfile;
+    }
 
-  @patch('/users/{id}')
-  @response(204, {
-    description: 'User PATCH success',
-  })
-  async updateById(
-    @param.path.number('id') id: number,
-    @requestBody({
-      content: {
-        'application/json': {
-          schema: getModelSchemaRef(User, {partial: true}),
-        },
-      },
-    })
-    user: User,
-  ): Promise<void> {
-    await this.userRepository.updateById(id, user);
-  }
-
-  @put('/users/{id}')
-  @response(204, {
-    description: 'User PUT success',
-  })
-  async replaceById(
-    @param.path.number('id') id: number,
-    @requestBody() user: User,
-  ): Promise<void> {
-    await this.userRepository.replaceById(id, user);
-  }
-
-  @del('/users/{id}')
-  @response(204, {
-    description: 'User DELETE success',
-  })
-  async deleteById(@param.path.number('id') id: number): Promise<void> {
-    await this.userRepository.deleteById(id);
-  }
+    async verifyCredentials( credentials: any ): Promise<User> {
+        // implement this method
+        const foundUser = await this.userRepository.findOne( {
+            where: {
+                email: credentials.email
+            }
+        } );
+        if ( !foundUser ) {
+            throw new Error( 'User not found' );
+        }
+        const passwordMatched = await this.hasher.comparePassword( credentials.password, foundUser.password );
+        if ( !passwordMatched ) {
+            throw new Error( 'Password is not valid' );
+        }
+        return foundUser;
+    }
 }
