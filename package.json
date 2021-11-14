@@ -1,5 +1,5 @@
 {
-  "name": "Casper Metrics",
+  "name": "casper-metrics-api",
   "version": "0.2.1",
   "description": "Public API for general Casper metrics",
   "keywords": [

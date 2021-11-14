@@ -1,54 +1,28 @@
-import {
-    Count,
-    CountSchema,
-    Filter,
-    FilterExcludingWhere,
-    repository,
-    Where,
-} from '@loopback/repository';
-import {
-    post,
-    param,
-    get,
-    getModelSchemaRef,
-    patch,
-    put,
-    del,
-    requestBody,
-    response,
-} from '@loopback/rest';
+import { repository, } from '@loopback/repository';
+import { post, requestBody, } from '@loopback/rest';
 import { User } from '../models';
 import { UserRepository } from '../repositories';
 import { inject } from '@loopback/core';
+import { PasswordHasherBindings, TokenServiceBindings } from '../keys';
+import { BcryptHasher } from '../services/hash.password';
+import { MyUserService, UserServiceBindings } from '@loopback/authentication-jwt';
+import { JWTService } from '../services/jwt.service';
+import { NotFound } from '../errors';
 
 export class UserController {
     constructor(
         @repository( UserRepository )
         public userRepository: UserRepository,
         @inject( PasswordHasherBindings.PASSWORD_HASHER )
-        public hasher: BcryptHasher
+        public hasher: BcryptHasher,
+        @inject( UserServiceBindings.USER_SERVICE )
+        public userService: MyUserService,
+        @inject( TokenServiceBindings.TOKEN_SERVICE )
+        public jwtService: JWTService,
     ) {
     }
 
-    @post( '/auth', {
-        responses: {
-            '200': {
-                description: 'Token',
-                content: {
-                    'application/json': {
-                        schema: {
-                            type: 'object',
-                            properties: {
-                                token: {
-                                    type: 'string'
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    } )
+    @post( '/api/auth')
     async login(
         @requestBody( {
             content: {
@@ -68,22 +42,23 @@ export class UserController {
             }
         } ) credentials: any
     ): Promise<any> {
+        console.log(credentials)
         const user = await this.verifyCredentials( credentials );
 
         const dbUser = await this.userRepository.findOne( { where: { id: user.id } } )
-        if ( !dbUser ) {
+        if( !dbUser ) {
+
             throw new Error( 'User not found.' );
         }
 
-        const userProfile = await this.userService.convertToUserProfile( user );
-        const token = await this.jwtService.generateToken( userProfile );
-        userProfile.token = token;
-        userProfile.balance = dbUser.tokens;
-        userProfile.egldAddress = dbUser.egldAddress;
 
-        //userProfile.balance = String( await WalletController.getUserBalance( user.innerAddress ) );
+        const token = await this.jwtService.generateToken( credentials );
 
-        return userProfile;
+        console.log( token)
+
+        return {
+            token: token
+        };
     }
 
     async verifyCredentials( credentials: any ): Promise<User> {
@@ -93,12 +68,12 @@ export class UserController {
                 email: credentials.email
             }
         } );
-        if ( !foundUser ) {
-            throw new Error( 'User not found' );
+        if( !foundUser ) {
+            throw new NotFound( 'User not found' );
         }
         const passwordMatched = await this.hasher.comparePassword( credentials.password, foundUser.password );
-        if ( !passwordMatched ) {
-            throw new Error( 'Password is not valid' );
+        if( !passwordMatched ) {
+            throw new NotFound( 'Password is not valid' );
         }
         return foundUser;
     }
