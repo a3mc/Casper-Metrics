@@ -4,7 +4,7 @@ import { User }                      from './models';
 import { PasswordHasher }            from './services/hash.password';
 
 export namespace TokenServiceConstants {
-    export const TOKEN_SECRET_VALUE = process.env.JWT_SECRET;
+    export const TOKEN_SECRET_VALUE = String( process.env.JWT_SECRET );
     export const TOKEN_EXPIRES_IN_VALUE = '48h';
 }
 export namespace TokenServiceBindings {

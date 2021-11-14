@@ -42,39 +42,26 @@ export class UserController {
             }
         } ) credentials: any
     ): Promise<any> {
-        console.log(credentials)
-        const user = await this.verifyCredentials( credentials );
-
-        const dbUser = await this.userRepository.findOne( { where: { id: user.id } } )
-        if( !dbUser ) {
-
-            throw new Error( 'User not found.' );
-        }
-
-
-        const token = await this.jwtService.generateToken( credentials );
-
-        console.log( token)
-
-        return {
-            token: token
-        };
-    }
-
-    async verifyCredentials( credentials: any ): Promise<User> {
-        // implement this method
         const foundUser = await this.userRepository.findOne( {
             where: {
                 email: credentials.email
             }
         } );
         if( !foundUser ) {
-            throw new NotFound( 'User not found' );
+            return {
+                error: 'User not found'
+            }
         }
         const passwordMatched = await this.hasher.comparePassword( credentials.password, foundUser.password );
         if( !passwordMatched ) {
-            throw new NotFound( 'Password is not valid' );
+            return {
+                error: 'Password is invalid'
+            }
         }
-        return foundUser;
+        const token = await this.jwtService.generateToken( credentials );
+        console.log( token )
+        return {
+            token: token
+        };
     }
 }
