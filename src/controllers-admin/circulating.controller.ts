@@ -2,6 +2,7 @@ import { Count, CountSchema, Filter, FilterExcludingWhere, repository, Where, } 
 import { del, get, getModelSchemaRef, param, patch, post, put, requestBody, response, } from '@loopback/rest';
 import { Circulating } from '../models';
 import { CirculatingRepository } from '../repositories';
+import { authenticate } from '@loopback/authentication';
 
 export class CirculatingController {
     constructor(
@@ -9,7 +10,7 @@ export class CirculatingController {
         public circulatingRepository: CirculatingRepository,
     ) {
     }
-
+    @authenticate('jwt')
     @post( '/api/circulating' )
     @response( 200, {
         description: 'Circulating model instance',
@@ -31,6 +32,7 @@ export class CirculatingController {
         return this.circulatingRepository.create( circulating );
     }
 
+    @authenticate('jwt')
     @get( '/api/circulating/count' )
     @response( 200, {
         description: 'Circulating model count',
@@ -42,6 +44,7 @@ export class CirculatingController {
         return this.circulatingRepository.count( where );
     }
 
+    @authenticate('jwt')
     @get( '/api/circulating' )
     @response( 200, {
         description: 'Array of Circulating model instances',
@@ -60,6 +63,7 @@ export class CirculatingController {
         return this.circulatingRepository.find( filter );
     }
 
+    @authenticate('jwt')
     @patch( '/api/circulating' )
     @response( 200, {
         description: 'Circulating PATCH success count',
@@ -79,6 +83,7 @@ export class CirculatingController {
         return this.circulatingRepository.updateAll( circulating, where );
     }
 
+    @authenticate('jwt')
     @get( '/api/circulating/{id}' )
     @response( 200, {
         description: 'Circulating model instance',
@@ -95,6 +100,7 @@ export class CirculatingController {
         return this.circulatingRepository.findById( id, filter );
     }
 
+    @authenticate('jwt')
     @patch( '/api/circulating/{id}' )
     @response( 204, {
         description: 'Circulating PATCH success',
@@ -113,6 +119,7 @@ export class CirculatingController {
         await this.circulatingRepository.updateById( id, circulating );
     }
 
+    @authenticate('jwt')
     @put( '/api/circulating/{id}' )
     @response( 204, {
         description: 'Circulating PUT success',
@@ -124,6 +131,7 @@ export class CirculatingController {
         await this.circulatingRepository.replaceById( id, circulating );
     }
 
+    @authenticate('jwt')
     @del( '/api/circulating/{id}' )
     @response( 204, {
         description: 'Circulating DELETE success',

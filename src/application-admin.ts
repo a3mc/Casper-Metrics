@@ -4,17 +4,23 @@ import { RestExplorerBindings, RestExplorerComponent, } from '@loopback/rest-exp
 import { RepositoryMixin } from '@loopback/repository';
 import { RestApplication } from '@loopback/rest';
 import { ServiceMixin } from '@loopback/service-proxy';
-import path from 'path';
 import { MyAdminSequence } from './sequence-admin';
-import { AuthenticationComponent, registerAuthenticationStrategy } from '@loopback/authentication';
-import { MyUserService, SECURITY_SCHEME_SPEC, UserServiceBindings } from '@loopback/authentication-jwt';
+import dotenv from 'dotenv';
+import { AuthenticationComponent } from '@loopback/authentication';
+import {
+    JWTAuthenticationComponent, JWTService,
+    MyUserService,
+    SECURITY_SCHEME_SPEC,
+    UserServiceBindings,
+} from '@loopback/authentication-jwt';
 import { PasswordHasherBindings, TokenServiceBindings, TokenServiceConstants } from './keys';
 import { BcryptHasher } from './services/hash.password';
-import { JWTService } from './services/jwt.service';
-export { ApplicationConfig };
-import dotenv from 'dotenv';
-import { JWTStrategy } from './jwt-stratageies';
+import { MetricsDbDataSource } from './datasources';
+
 dotenv.config();
+
+export { ApplicationConfig };
+
 
 export class ApplicationAdmin extends BootMixin(
     ServiceMixin( RepositoryMixin( RestApplication ) ),
@@ -22,24 +28,14 @@ export class ApplicationAdmin extends BootMixin(
     constructor( options: ApplicationConfig = {} ) {
         super( options );
 
-        this.setupBinding();
-
-        this.addSecuritySpec();
 
         this.component( AuthenticationComponent );
-        registerAuthenticationStrategy( this, JWTStrategy );
 
         // Set up the custom sequence
         this.sequence( MyAdminSequence );
 
-        // Set up default home page
-        //this.static( '/', path.join( __dirname, '../dist-admin' ) );
-        //this.static( '/css', path.join( __dirname, '../public/css' ) );
-
         // Customize @loopback/rest-explorer configuration here
         this.configure( RestExplorerBindings.COMPONENT ).to( {
-            //path: '/explorer',
-            //swaggerThemeFile: '/css/swagger.css',
             useSelfHostedSpec: true,
             indexTemplatePath: '',
         } );
@@ -55,9 +51,16 @@ export class ApplicationAdmin extends BootMixin(
                 nested: true,
             },
         };
+
+        // Mount authentication system
+        this.component( AuthenticationComponent );
+        // Mount jwt component
+        this.component( JWTAuthenticationComponent );
+        // Bind datasource
+        this.dataSource(MetricsDbDataSource, UserServiceBindings.DATASOURCE_NAME);
     }
 
-    setupBinding(): void {
+    etupBinding(): void {
         this.bind( PasswordHasherBindings.PASSWORD_HASHER ).toClass( BcryptHasher );
         this.bind( PasswordHasherBindings.ROUNDS ).to( 10 );
         this.bind( UserServiceBindings.USER_SERVICE ).toClass( MyUserService );
@@ -70,8 +73,8 @@ export class ApplicationAdmin extends BootMixin(
         this.api( {
             openapi: '3.0.0',
             info: {
-                title: 'Release Monster API (admin)',
-                version: '0.3.1'
+                title: 'Casper metrics API (admin)',
+                version: '0.0.1'
             },
             paths: {},
             components: { securitySchemes: SECURITY_SCHEME_SPEC },
@@ -84,4 +87,5 @@ export class ApplicationAdmin extends BootMixin(
             servers: [{ url: '/' }]
         } );
     }
+
 }
