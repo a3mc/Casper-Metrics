@@ -5,22 +5,15 @@ import { RepositoryMixin } from '@loopback/repository';
 import { RestApplication } from '@loopback/rest';
 import { ServiceMixin } from '@loopback/service-proxy';
 import { MyAdminSequence } from './sequence-admin';
-import dotenv from 'dotenv';
-import { AuthenticationComponent } from '@loopback/authentication';
-import {
-    JWTAuthenticationComponent, JWTService,
-    MyUserService,
-    SECURITY_SCHEME_SPEC,
-    UserServiceBindings,
-} from '@loopback/authentication-jwt';
-import { PasswordHasherBindings, TokenServiceBindings, TokenServiceConstants } from './keys';
+import { AuthenticationComponent, registerAuthenticationStrategy } from '@loopback/authentication';
+import { PasswordHasherBindings, TokenServiceBindings, TokenServiceConstants, UserServiceBindings } from './keys';
 import { BcryptHasher } from './services/hash.password';
-import { MetricsDbDataSource } from './datasources';
-
-dotenv.config();
+import { JWTStrategy } from './strategies/jwt-strategies';
+import { SECURITY_SCHEME_SPEC } from '@loopback/authentication-jwt';
+import { MyUserService } from './services/user.service';
+import { JWTService } from './services/jwt.service';
 
 export { ApplicationConfig };
-
 
 export class ApplicationAdmin extends BootMixin(
     ServiceMixin( RepositoryMixin( RestApplication ) ),
@@ -28,8 +21,10 @@ export class ApplicationAdmin extends BootMixin(
     constructor( options: ApplicationConfig = {} ) {
         super( options );
 
-
+        this.setupBinding();
+        this.addSecuritySpec();
         this.component( AuthenticationComponent );
+        registerAuthenticationStrategy( this, JWTStrategy );
 
         // Set up the custom sequence
         this.sequence( MyAdminSequence );
@@ -51,16 +46,9 @@ export class ApplicationAdmin extends BootMixin(
                 nested: true,
             },
         };
-
-        // Mount authentication system
-        this.component( AuthenticationComponent );
-        // Mount jwt component
-        this.component( JWTAuthenticationComponent );
-        // Bind datasource
-        this.dataSource(MetricsDbDataSource, UserServiceBindings.DATASOURCE_NAME);
     }
 
-    etupBinding(): void {
+    setupBinding(): void {
         this.bind( PasswordHasherBindings.PASSWORD_HASHER ).toClass( BcryptHasher );
         this.bind( PasswordHasherBindings.ROUNDS ).to( 10 );
         this.bind( UserServiceBindings.USER_SERVICE ).toClass( MyUserService );
@@ -73,7 +61,7 @@ export class ApplicationAdmin extends BootMixin(
         this.api( {
             openapi: '3.0.0',
             info: {
-                title: 'Casper metrics API (admin)',
+                title: 'Casper Metrics Admin API (admin)',
                 version: '0.0.1'
             },
             paths: {},

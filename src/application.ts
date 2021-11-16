@@ -4,8 +4,10 @@ import { RestExplorerBindings, RestExplorerComponent, } from '@loopback/rest-exp
 import { RepositoryMixin } from '@loopback/repository';
 import { RestApplication } from '@loopback/rest';
 import { ServiceMixin } from '@loopback/service-proxy';
-import path from 'path';
 import { MySequence } from './sequence';
+import { authenticate } from '@loopback/authentication';
+import { MyAdminSequence } from './sequence-admin';
+
 export { ApplicationConfig };
 
 export class CasperMetricsApplication extends BootMixin(
@@ -15,7 +17,7 @@ export class CasperMetricsApplication extends BootMixin(
         super( options );
 
         // Set up the custom sequence
-        this.sequence( MySequence );
+        this.sequence( MyAdminSequence );
 
         // Set up default home page
         //this.static( '/css', path.join( __dirname, '../public/css' ) );

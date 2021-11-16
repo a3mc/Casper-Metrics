@@ -1,9 +1,12 @@
 import { TokenService, UserService } from '@loopback/authentication';
 import { BindingKey }                from '@loopback/core';
+import { User }                      from './models';
+import { Credentials }               from './repositories/user.repository';
 import { PasswordHasher }            from './services/hash.password';
 
+
 export namespace TokenServiceConstants {
-    export const TOKEN_SECRET_VALUE = String( process.env.JWT_SECRET );
+    export const TOKEN_SECRET_VALUE = 'FIXME!TEST';
     export const TOKEN_EXPIRES_IN_VALUE = '48h';
 }
 export namespace TokenServiceBindings {
@@ -24,3 +27,10 @@ export namespace PasswordHasherBindings {
     );
     export const ROUNDS = BindingKey.create<number>( 'services.hasher.rounds' );
 }
+
+export namespace UserServiceBindings {
+    export const USER_SERVICE = BindingKey.create<UserService<Credentials, User>>(
+        'services.user.service'
+    );
+}
+

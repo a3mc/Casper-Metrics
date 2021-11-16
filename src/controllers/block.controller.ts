@@ -30,13 +30,13 @@ export class BlockController {
             limit: 1,
             order: ['blockHeight DESC'],
         };
-        if ( blockHeight !== undefined ) {
+        if( blockHeight !== undefined ) {
             filter.where = {
                 blockHeight: blockHeight
             }
         }
         const block: Partial<Block> | null = await this.blocksRepository.findOne( filter );
-        if ( block ) {
+        if( block ) {
             const circulatingSupply: bigint = await this._getLastCirculatingSupply( block );
             block.circulatingSupply = Number( circulatingSupply );
         } else {
@@ -66,13 +66,13 @@ export class BlockController {
             limit: 1,
             order: ['blockHeight DESC']
         };
-        if ( blockHeight !== undefined ) {
+        if( blockHeight !== undefined ) {
             filter.where = {
                 blockHeight: blockHeight
             }
         }
         const block: Block | null = await this.blocksRepository.findOne( filter );
-        if ( !block ) {
+        if( !block ) {
             throw new NotFound();
         }
         return ( await this._getLastCirculatingSupply( block ) ).toString();
@@ -93,7 +93,7 @@ export class BlockController {
             limit: 1,
             order: ['blockHeight DESC']
         };
-        if ( blockHeight !== undefined ) {
+        if( blockHeight !== undefined ) {
             filter.where = {
                 blockHeight: blockHeight
             }
@@ -102,7 +102,7 @@ export class BlockController {
             .catch( error => {
             } );
 
-        if ( !lastRecord ) {
+        if( !lastRecord ) {
             throw new NotFound();
         }
         return lastRecord.totalSupply.toString();
@@ -110,7 +110,7 @@ export class BlockController {
 
     private async _getLastCirculatingSupply( block: Partial<Block> ): Promise<bigint> {
         let circulatingSupply = BigInt( 0 );
-        if ( block && block.eraId ) {
+        if( block && block.eraId ) {
             const blockEra = await this.eraRepository.findById( block.eraId );
             circulatingSupply = blockEra.circulatingSupply;
         }

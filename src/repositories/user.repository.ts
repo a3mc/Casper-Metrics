@@ -1,16 +1,20 @@
-import {inject} from '@loopback/core';
-import {DefaultCrudRepository} from '@loopback/repository';
-import {MetricsDbDataSource} from '../datasources';
-import {User, UserRelations} from '../models';
+import { DefaultCrudRepository } from '@loopback/repository';
+import { User, UserRelations }   from '../models';
+import { MetricsDbDataSource }   from '../datasources';
+import { inject }                from '@loopback/core';
 
-export class UserRepository extends DefaultCrudRepository<
-  User,
-  typeof User.prototype.id,
-  UserRelations
-> {
-  constructor(
-    @inject('datasources.metricsDB') dataSource: MetricsDbDataSource,
-  ) {
-    super(User, dataSource);
-  }
+export type Credentials = {
+  email: string;
+  password: string;
+  role: string;
+}
+
+export class UserRepository extends DefaultCrudRepository<User,
+    typeof User.prototype.id,
+    UserRelations> {
+    constructor(
+        @inject( 'datasources.metricsDB' ) dataSource: MetricsDbDataSource,
+    ) {
+        super( User, dataSource );
+    }
 }
