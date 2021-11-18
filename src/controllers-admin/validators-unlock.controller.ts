@@ -6,7 +6,9 @@ import { networks } from "../configs/networks";
 import moment from 'moment';
 import { service } from "@loopback/core";
 import { CirculatingService } from "../services";
+import { authenticate } from '@loopback/authentication';
 
+@authenticate('jwt')
 export class ValidatorsUnlockController {
     constructor(
         @repository( ValidatorsUnlockRepository )

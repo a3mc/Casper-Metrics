@@ -51,6 +51,13 @@ if ( require.main === module ) {
                     env: 'production',
                 },
                 basePath: '/',
+                cors: {
+                    origin: '*',
+                    methods: 'OPTIONS,GET,HEAD',
+                    preflightContinue: false,
+                    optionsSuccessStatus: 204,
+                    credentials: true,
+                },
             },
         };
         main( config ).catch( err => {
@@ -77,10 +84,10 @@ if ( require.main === module ) {
                 basePath: '/',
                 cors: {
                     origin: '*',
-                    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+                    methods: 'OPTIONS,GET,HEAD,PUT,PATCH,POST,DELETE',
                     preflightContinue: false,
                     optionsSuccessStatus: 204,
-                    //credentials: true,
+                    credentials: true,
                 },
             },
         };

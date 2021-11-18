@@ -2,7 +2,9 @@ import { Count, CountSchema, Filter, FilterExcludingWhere, repository, Where, } 
 import { del, get, getModelSchemaRef, param, patch, post, put, requestBody, response, } from '@loopback/rest';
 import { KnownAccount } from '../models';
 import { KnownAccountRepository } from '../repositories';
+import { authenticate } from '@loopback/authentication';
 
+@authenticate('jwt')
 export class KnownAccountController {
     constructor(
         @repository( KnownAccountRepository )
@@ -10,7 +12,7 @@ export class KnownAccountController {
     ) {
     }
 
-    @post( '/api/known-account' )
+    @post( '/known-account' )
     @response( 200, {
         description: 'KnownAccount model instance',
         content: { 'application/json': { schema: getModelSchemaRef( KnownAccount ) } },
@@ -31,7 +33,7 @@ export class KnownAccountController {
         return this.knownAccountsRepository.create( knownAccounts );
     }
 
-    @get( '/api/known-account/count' )
+    @get( '/known-account/count' )
     @response( 200, {
         description: 'KnownAccount model count',
         content: { 'application/json': { schema: CountSchema } },
@@ -42,7 +44,7 @@ export class KnownAccountController {
         return this.knownAccountsRepository.count( where );
     }
 
-    @get( '/api/known-account' )
+    @get( '/known-account' )
     @response( 200, {
         description: 'Array of KnownAccount model instances',
         content: {
@@ -60,7 +62,7 @@ export class KnownAccountController {
         return this.knownAccountsRepository.find( filter );
     }
 
-    @patch( '/api/known-account' )
+    @patch( '/known-account' )
     @response( 200, {
         description: 'KnownAccount PATCH success count',
         content: { 'application/json': { schema: CountSchema } },
@@ -79,7 +81,7 @@ export class KnownAccountController {
         return this.knownAccountsRepository.updateAll( knownAccounts, where );
     }
 
-    @get( '/api/known-account/{id}' )
+    @get( '/known-account/{id}' )
     @response( 200, {
         description: 'KnownAccount model instance',
         content: {
@@ -95,7 +97,7 @@ export class KnownAccountController {
         return this.knownAccountsRepository.findById( id, filter );
     }
 
-    @patch( '/api/known-account/{id}' )
+    @patch( '/known-account/{id}' )
     @response( 204, {
         description: 'KnownAccount PATCH success',
     } )
@@ -113,7 +115,7 @@ export class KnownAccountController {
         await this.knownAccountsRepository.updateById( id, knownAccounts );
     }
 
-    @put( '/api/known-account/{id}' )
+    @put( '/known-account/{id}' )
     @response( 204, {
         description: 'KnownAccount PUT success',
     } )
@@ -124,7 +126,7 @@ export class KnownAccountController {
         await this.knownAccountsRepository.replaceById( id, knownAccounts );
     }
 
-    @del( '/api/known-account/{id}' )
+    @del( '/known-account/{id}' )
     @response( 204, {
         description: 'KnownAccount DELETE success',
     } )
