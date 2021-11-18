@@ -3,7 +3,9 @@ import { get, getModelSchemaRef, param, response, } from '@loopback/rest';
 import { Era } from '../models';
 import { EraRepository } from '../repositories';
 import { NotFound } from "../errors/errors";
+import { authenticate } from '@loopback/authentication';
 
+@authenticate('jwt')
 export class EraController {
     constructor(
         @repository( EraRepository )
@@ -11,7 +13,8 @@ export class EraController {
     ) {
     }
 
-    @get( '/api/era/circulating' )
+    
+    @get( '/era/circulating' )
     @response( 200, {
         description: `Last Era "Circulation Supply" when called without params.
         Era data is updated on the Switch Block.
@@ -42,7 +45,8 @@ export class EraController {
         return lastRecord.circulatingSupply.toString();
     }
 
-    @get( '/api/era/total' )
+    
+    @get( '/era/total' )
     @response( 200, {
         description: `Last Era "Total Supply" when called without params.
         Era data is updated on the Switch Block.
@@ -73,7 +77,8 @@ export class EraController {
         return lastRecord.totalSupply.toString();
     }
 
-    @get( '/api/era' )
+    
+    @get( '/era' )
     @response( 200, {
         description: `Last Era metrics when called without params.
         Can be queried by either "eraId", "blockHeight" or "timestamp" (e.g. "2021-04-09T09:31:36Z").

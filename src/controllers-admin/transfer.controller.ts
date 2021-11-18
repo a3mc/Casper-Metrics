@@ -4,9 +4,11 @@ import { Transfer } from '../models';
 import { BlockRepository, CirculatingRepository, EraRepository, TransferRepository } from '../repositories';
 import { service } from "@loopback/core";
 import { CirculatingService } from "../services";
+import { authenticate } from '@loopback/authentication';
 
 const clone = require( 'node-clone-js' )
 
+@authenticate('jwt')
 export class TransferController {
     constructor(
         @repository( TransferRepository )
@@ -22,7 +24,7 @@ export class TransferController {
     ) {
     }
 
-    @get( '/api/transfers/count' )
+    @get( '/transfers/count' )
     @response( 200, {
         description: 'Transfer model count',
         content: { 'application/json': { schema: CountSchema } },
@@ -33,7 +35,7 @@ export class TransferController {
         return this.transferRepository.count( where );
     }
 
-    @get( '/api/transfers' )
+    @get( '/transfers' )
     @response( 200, {
         description: 'Array of Transfer model instances',
         content: {
@@ -111,7 +113,7 @@ export class TransferController {
         };
     }
 
-    @post( '/api/transfers/approve' )
+    @post( '/transfers/approve' )
     @response( 200, {
         description: 'Approve transactions as unlocked',
     } )

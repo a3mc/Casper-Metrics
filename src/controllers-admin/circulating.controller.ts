@@ -2,15 +2,17 @@ import { Count, CountSchema, Filter, FilterExcludingWhere, repository, Where, } 
 import { del, get, getModelSchemaRef, param, patch, post, put, requestBody, response, } from '@loopback/rest';
 import { Circulating } from '../models';
 import { CirculatingRepository } from '../repositories';
+import { authenticate } from '@loopback/authentication';
 
+@authenticate('jwt')
 export class CirculatingController {
     constructor(
         @repository( CirculatingRepository )
         public circulatingRepository: CirculatingRepository,
     ) {
     }
-
-    @post( '/api/circulating' )
+    
+    @post( '/circulating' )
     @response( 200, {
         description: 'Circulating model instance',
         content: { 'application/json': { schema: getModelSchemaRef( Circulating ) } },
@@ -31,7 +33,8 @@ export class CirculatingController {
         return this.circulatingRepository.create( circulating );
     }
 
-    @get( '/api/circulating/count' )
+    
+    @get( '/circulating/count' )
     @response( 200, {
         description: 'Circulating model count',
         content: { 'application/json': { schema: CountSchema } },
@@ -42,7 +45,8 @@ export class CirculatingController {
         return this.circulatingRepository.count( where );
     }
 
-    @get( '/api/circulating' )
+    
+    @get( '/circulating' )
     @response( 200, {
         description: 'Array of Circulating model instances',
         content: {
@@ -60,7 +64,8 @@ export class CirculatingController {
         return this.circulatingRepository.find( filter );
     }
 
-    @patch( '/api/circulating' )
+    
+    @patch( '/circulating' )
     @response( 200, {
         description: 'Circulating PATCH success count',
         content: { 'application/json': { schema: CountSchema } },
@@ -79,7 +84,8 @@ export class CirculatingController {
         return this.circulatingRepository.updateAll( circulating, where );
     }
 
-    @get( '/api/circulating/{id}' )
+    
+    @get( '/circulating/{id}' )
     @response( 200, {
         description: 'Circulating model instance',
         content: {
@@ -95,7 +101,8 @@ export class CirculatingController {
         return this.circulatingRepository.findById( id, filter );
     }
 
-    @patch( '/api/circulating/{id}' )
+    
+    @patch( '/circulating/{id}' )
     @response( 204, {
         description: 'Circulating PATCH success',
     } )
@@ -113,7 +120,8 @@ export class CirculatingController {
         await this.circulatingRepository.updateById( id, circulating );
     }
 
-    @put( '/api/circulating/{id}' )
+    
+    @put( '/circulating/{id}' )
     @response( 204, {
         description: 'Circulating PUT success',
     } )
@@ -124,7 +132,8 @@ export class CirculatingController {
         await this.circulatingRepository.replaceById( id, circulating );
     }
 
-    @del( '/api/circulating/{id}' )
+    
+    @del( '/circulating/{id}' )
     @response( 204, {
         description: 'Circulating DELETE success',
     } )

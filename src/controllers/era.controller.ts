@@ -3,7 +3,9 @@ import { get, getModelSchemaRef, param, response, } from '@loopback/rest';
 import { Era } from '../models';
 import { EraRepository } from '../repositories';
 import { NotFound } from "../errors/errors";
+import { authenticate } from '@loopback/authentication';
 
+@authenticate.skip()
 export class EraController {
     constructor(
         @repository( EraRepository )

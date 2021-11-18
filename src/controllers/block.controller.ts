@@ -3,6 +3,7 @@ import { get, getModelSchemaRef, param, response, } from '@loopback/rest';
 import { Block, Era } from '../models';
 import { BlockRepository, EraRepository } from '../repositories';
 import { NotFound } from "../errors/errors";
+import { authenticate } from '@loopback/authentication';
 
 export class BlockController {
     constructor(
