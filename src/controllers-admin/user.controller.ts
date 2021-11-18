@@ -125,16 +125,16 @@ export class UserController {
         return Promise.resolve( currentUser );
     }
 
-    // @get( '/users/count' )
-    // @response( 200, {
-    //     description: 'User model count',
-    //     content: { 'application/json': { schema: CountSchema } },
-    // } )
-    // async count(
-    //     @param.where( User ) where?: Where<User>,
-    // ): Promise<Count> {
-    //     return this.userRepository.count( where );
-    // }
+    @get( '/health' )
+    @response( 200, {
+        description: 'User model count',
+        content: { 'application/json': { schema: CountSchema } },
+    } )
+    async count(
+        @param.where( User ) where?: Where<User>,
+    ): Promise<number> {
+        return 1;
+    }
     //
     // @get( '/users' )
     // @response( 200, {

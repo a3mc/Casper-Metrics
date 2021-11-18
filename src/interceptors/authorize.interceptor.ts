@@ -17,7 +17,7 @@ import { intersection }                                   from 'lodash';
  * This class will be bound to the application as an `Interceptor` during
  * `boot`
  */
-@globalInterceptor( 'auth-intercept', { tags: { name: 'authorize' } } )
+@globalInterceptor( '', { tags: { name: 'authorize' } } )
 export class AuthorizeInterceptor implements Provider<Interceptor> {
     constructor(
         @inject( AuthenticationBindings.METADATA )
@@ -50,15 +50,10 @@ export class AuthorizeInterceptor implements Provider<Interceptor> {
         try {
             // Add pre-invocation logic here
 
-            console.log('Log from authorize global interceptor')
-            console.log(this.metadata);
-
             // if you not provide options in your @authenticate decorator
-            // //if ( !this.metadata ) {
-            //     return next();
-            // //}
-
-
+            if ( !this.metadata ) {
+                return next();
+            }
 
             let metadataOptions;
 
@@ -66,8 +61,6 @@ export class AuthorizeInterceptor implements Provider<Interceptor> {
                 try {
                     metadataOptions = item[1].options;
                 } catch ( e ) {
-                    console.log('here')
-                    console.log(e)
                     //console.error( e );
                 }
             } );
