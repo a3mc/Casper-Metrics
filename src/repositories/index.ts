@@ -6,3 +6,4 @@ export * from './circulating.repository';
 export * from './validators-unlock.repository';
 export * from './validators-unlock-constants.repository';
 export * from './user.repository';
+export * from './price.repository';
