@@ -1,5 +1,5 @@
-import { Count, CountSchema, Filter, FilterExcludingWhere, repository, Where, } from '@loopback/repository';
-import { del, get, getModelSchemaRef, param, patch, post, put, requestBody, response, } from '@loopback/rest';
+import { repository, } from '@loopback/repository';
+import { get, getModelSchemaRef, oas, OperationVisibility, post, requestBody, } from '@loopback/rest';
 import { User } from '../models';
 import { UserRepository } from '../repositories';
 import { JWTService } from '../services/jwt.service';
@@ -7,13 +7,12 @@ import { inject } from '@loopback/core';
 import { PasswordHasherBindings, TokenServiceBindings, UserServiceBindings } from '../keys';
 import { MyUserService } from '../services/user.service';
 import { BcryptHasher } from '../services/hash.password';
-import { validateCredentials } from '../services/validator.service';
-import _ from 'lodash';
 import { NotFound } from '../errors/errors';
-import { authenticate, AuthenticationBindings, TokenService } from '@loopback/authentication';
+import { authenticate, AuthenticationBindings } from '@loopback/authentication';
 import { OPERATION_SECURITY_SPEC } from '@loopback/authentication-jwt';
-import {SecurityBindings, UserProfile} from '@loopback/security';
+import { UserProfile } from '@loopback/security';
 
+@oas.visibility( OperationVisibility.UNDOCUMENTED )
 export class UserController {
     constructor(
         @repository( UserRepository )
@@ -36,7 +35,7 @@ export class UserController {
         }
     } )
     async signup( @requestBody( {} ) user: any ) {
-        validateCredentials( _.pick( user, ['email', 'password', 'role'] ) );
+        //validateCredentials( _.pick( user, ['email', 'password', 'role'] ) );
 
         if ( await this.userRepository.findOne( { where: { email: user.email } } ) ) {
             return {
@@ -125,16 +124,6 @@ export class UserController {
         return Promise.resolve( currentUser );
     }
 
-    @get( '/health' )
-    @response( 200, {
-        description: 'User model count',
-        content: { 'application/json': { schema: CountSchema } },
-    } )
-    async count(
-        @param.where( User ) where?: Where<User>,
-    ): Promise<number> {
-        return 1;
-    }
     //
     // @get( '/users' )
     // @response( 200, {
