@@ -1,14 +1,14 @@
 import { Count, CountSchema, repository, Where, } from '@loopback/repository';
-import { get, getModelSchemaRef, param, post, response, } from '@loopback/rest';
+import { get, getModelSchemaRef, oas, OperationVisibility, param, post, response, } from '@loopback/rest';
 import { Transfer } from '../models';
 import { BlockRepository, CirculatingRepository, EraRepository, TransferRepository } from '../repositories';
 import { service } from "@loopback/core";
 import { CirculatingService } from "../services";
 import { authenticate } from '@loopback/authentication';
+const { LinkedList, Queue, Stack, Graph } = require('dsa.js');
 
 const clone = require( 'node-clone-js' )
 
-@authenticate('jwt')
 export class TransferController {
     constructor(
         @repository( TransferRepository )
@@ -53,6 +53,7 @@ export class TransferController {
         @param.query.string( 'approved' ) approved?: string,
         @param.query.number( 'perPage' ) perPage?: number,
         @param.query.number( 'page' ) page?: number,
+        @param.query.number( 'eraId' ) eraId?: number,
     ): Promise<any> {
         let filter: any = {
             where: {
@@ -62,24 +63,31 @@ export class TransferController {
                 ]
             }
         }
-        if ( toHash ) {
+        if( toHash ) {
             filter = {
                 where: {
                     toHash: toHash
                 }
             };
         }
-        if ( fromHash ) {
+        if( fromHash ) {
             filter = {
                 where: {
                     fromHash: fromHash
                 }
             };
         }
-        if ( approved ) {
+        if( approved ) {
             filter = {
                 where: {
                     approved: true
+                }
+            };
+        }
+        if( eraId ) {
+            filter = {
+                where: {
+                    eraId: eraId
                 }
             };
         }
@@ -88,7 +96,7 @@ export class TransferController {
         const approvedFilter = clone( filter );
         approvedFilter.where.approved = true;
 
-        if ( perPage && page ) {
+        if( perPage && page ) {
             filter.limit = perPage;
             filter.skip = perPage * ( page - 1 )
         }
@@ -105,6 +113,12 @@ export class TransferController {
             return a + BigInt( b.amount );
         }, BigInt( 0 ) );
 
+        // for ( let trans of allData ) {
+        //     const block = await this.blockRepository.findById( trans.blockHeight );
+        //     trans.eraId = block.eraId;
+        //     await this.transferRepository.save( trans );
+        // }
+
         return {
             totalItems: await this.transferRepository.count( filter.where ),
             approvedSum: Number( approvedSum / BigInt( 1000000000 ) ),
@@ -113,6 +127,70 @@ export class TransferController {
         };
     }
 
+    @get( '/transfersByEraId' )
+    @response( 200, {
+        description: 'Transfers filtered by Era Id',
+        content: {
+            'application/json': {
+                schema: {
+                    type: 'array',
+                    items: getModelSchemaRef( Transfer, { includeRelations: false } ),
+                },
+            },
+        },
+    } )
+    async findByEraId(
+        @param.query.number( 'eraId' ) eraId?: number,
+    ): Promise<any> {
+        if ( !eraId ) {
+            eraId = 1000; // Fixmelast Era Id
+        }
+        const filter = {
+            where: {
+                eraId: eraId
+            },
+        };
+
+        let transfers = await this.transferRepository.find( filter );
+
+        transfers.sort( ( a: any, b: any ) => {
+            if ( parseInt( a.amount ) > parseInt( b.amount ) ) {
+                return -1;
+            } if ( parseInt( a.amount ) < parseInt( b.amount ) ) {
+                return 1;
+            } else {
+                return 0;
+            }
+        })
+
+        if ( transfers.length > 20 ) {
+            transfers = transfers.slice( 0, 20 );
+        }
+
+        if ( !transfers.length ) {
+            const graph: any = new Graph(Graph.DIRECTED);
+            for ( const transfer of transfers ) {
+                graph.addEdge( transfer.fromHash, transfer.toHash );
+            }
+            for ( const transfer of transfers ) {
+                if ( graph.findPath(transfer.toHash, transfer.fromHash).length > 0 ) {
+                    transfer.toHash = 'dub-' + transfer.toHash;
+                }
+            }
+        }
+
+        const era = await this.eraRepository.findById( eraId );
+
+        return {
+            eraId: eraId,
+            eraStart: era.start,
+            eraEnd: era.end,
+            transfers: transfers
+        };
+    }
+
+    @oas.visibility( OperationVisibility.UNDOCUMENTED )
+    @authenticate( 'jwt' )
     @post( '/transfers/approve' )
     @response( 200, {
         description: 'Approve transactions as unlocked',
@@ -121,7 +199,7 @@ export class TransferController {
         @param.query.string( 'approvedIds' ) approvedIds?: string,
         @param.query.string( 'declinedIds' ) declinedIds?: string,
     ): Promise<void> {
-        if ( approvedIds ) {
+        if( approvedIds ) {
             const approved: number[] = approvedIds.split( ',' ).map(
                 id => Number( id )
             );
@@ -131,7 +209,7 @@ export class TransferController {
                 } );
             }
         }
-        if ( declinedIds ) {
+        if( declinedIds ) {
             const declined: number[] = declinedIds.split( ',' ).map(
                 id => Number( id )
             );
@@ -152,7 +230,7 @@ export class TransferController {
             deployHash: { neq: '' }
         } );
 
-        if ( approvedTransfers ) {
+        if( approvedTransfers ) {
             let circulating = [];
             for ( const transfer of approvedTransfers ) {
                 const block = await this.blockRepository.findById( transfer.blockHeight, {
