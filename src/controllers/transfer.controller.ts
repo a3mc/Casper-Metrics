@@ -167,8 +167,8 @@ export class TransferController {
             transfers = transfers.slice( 0, 20 );
         }
 
-        if ( !transfers.length ) {
-            const graph: any = new Graph(Graph.DIRECTED);
+        if ( transfers.length ) {
+            const graph = new Graph(Graph.DIRECTED);
             for ( const transfer of transfers ) {
                 graph.addEdge( transfer.fromHash, transfer.toHash );
             }
