@@ -43,6 +43,12 @@ export class Transfer extends Entity {
     blockHeight: number;
 
     @property( {
+        type: 'number',
+        required: true,
+    } )
+    eraId: number;
+
+    @property( {
         type: 'string',
         required: true,
         length: 80,

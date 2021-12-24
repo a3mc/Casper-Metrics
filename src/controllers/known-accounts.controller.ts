@@ -1,10 +1,23 @@
 import { Count, CountSchema, Filter, FilterExcludingWhere, repository, Where, } from '@loopback/repository';
-import { del, get, getModelSchemaRef, param, patch, post, put, requestBody, response, } from '@loopback/rest';
+import {
+    del,
+    get,
+    getModelSchemaRef,
+    oas,
+    OperationVisibility,
+    param,
+    patch,
+    post,
+    put,
+    requestBody,
+    response,
+} from '@loopback/rest';
 import { KnownAccount } from '../models';
 import { KnownAccountRepository } from '../repositories';
 import { authenticate } from '@loopback/authentication';
 
-@authenticate('jwt')
+@oas.visibility( OperationVisibility.UNDOCUMENTED )
+@authenticate( 'jwt' )
 export class KnownAccountController {
     constructor(
         @repository( KnownAccountRepository )

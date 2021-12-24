@@ -1,0 +1,373 @@
+import { Count, CountSchema, repository, Where, } from '@loopback/repository';
+import { get, getModelSchemaRef, oas, OperationVisibility, param, post, response, } from '@loopback/rest';
+import { Transfer } from '../models';
+import { BlockRepository, CirculatingRepository, EraRepository, TransferRepository } from '../repositories';
+import { service } from "@loopback/core";
+import { CirculatingService } from "../services";
+import { authenticate } from '@loopback/authentication';
+import { CasperClient } from 'casper-client-sdk';
+const { LinkedList, Queue, Stack, Graph } = require('dsa.js');
+import { CasperServiceByJsonRPC, CLPublicKey } from 'casper-js-sdk';
+const clone = require( 'node-clone-js' )
+
+export class TransferController {
+
+    rpc: any;
+
+    constructor(
+        @repository( TransferRepository )
+        public transferRepository: TransferRepository,
+        @repository( CirculatingRepository )
+        public circulatingRepository: CirculatingRepository,
+        @repository( BlockRepository )
+        public blockRepository: BlockRepository,
+        @repository( EraRepository )
+        public eraRepository: EraRepository,
+        @service( CirculatingService )
+        public circulatingService: CirculatingService
+    ) {
+        this.client = new CasperClient( 'http://65.108.79.253:7777/rpc' );
+        this.rpc = new CasperServiceByJsonRPC( 'http://65.108.79.253:7777/rpc' )
+    }
+
+    @get( '/transfers/count' )
+    @response( 200, {
+        description: 'Transfer model count',
+        content: { 'application/json': { schema: CountSchema } },
+    } )
+    async count(
+        @param.where( Transfer ) where?: Where<Transfer>,
+    ): Promise<Count> {
+        return this.transferRepository.count( where );
+    }
+
+    @get( '/transfers' )
+    @response( 200, {
+        description: 'Array of Transfer model instances',
+        content: {
+            'application/json': {
+                schema: {
+                    type: 'array',
+                    items: getModelSchemaRef( Transfer, { includeRelations: true } ),
+                },
+            },
+        },
+    } )
+    async find(
+        @param.query.string( 'toHash' ) toHash?: string,
+        @param.query.string( 'fromHash' ) fromHash?: string,
+        @param.query.string( 'approved' ) approved?: string,
+        @param.query.number( 'perPage' ) perPage?: number,
+        @param.query.number( 'page' ) page?: number,
+        @param.query.number( 'eraId' ) eraId?: number,
+    ): Promise<any> {
+        let filter: any = {
+            where: {
+                and: [
+                    { depth: { lt: 3 } },
+                    { depth: { gt: 0 } },
+                ]
+            }
+        }
+        if( toHash ) {
+            filter = {
+                where: {
+                    toHash: toHash
+                }
+            };
+        }
+        if( fromHash ) {
+            filter = {
+                where: {
+                    fromHash: fromHash
+                }
+            };
+        }
+        if( approved ) {
+            filter = {
+                where: {
+                    approved: true
+                }
+            };
+        }
+        if( eraId ) {
+            filter = {
+                where: {
+                    eraId: eraId
+                }
+            };
+        }
+
+        const allFilter = clone( filter );
+        const approvedFilter = clone( filter );
+        approvedFilter.where.approved = true;
+
+        if( perPage && page ) {
+            filter.limit = perPage;
+            filter.skip = perPage * ( page - 1 )
+        }
+
+        const data = await this.transferRepository.find( filter );
+
+        const approvedItems = await this.transferRepository.find( approvedFilter );
+        let approvedSum = approvedItems.reduce( ( a, b ) => {
+            return a + BigInt( b.amount );
+        }, BigInt( 0 ) );
+
+        const allData = await this.transferRepository.find( allFilter );
+        let totalSum = allData.reduce( ( a, b ) => {
+            return a + BigInt( b.amount );
+        }, BigInt( 0 ) );
+
+        // for ( let trans of allData ) {
+        //     const block = await this.blockRepository.findById( trans.blockHeight );
+        //     trans.eraId = block.eraId;
+        //     await this.transferRepository.save( trans );
+        // }
+
+        return {
+            totalItems: await this.transferRepository.count( filter.where ),
+            approvedSum: Number( approvedSum / BigInt( 1000000000 ) ),
+            totalSum: Number( totalSum / BigInt( 1000000000 ) ),
+            data: data
+        };
+    }
+
+    @get( '/transfersByEraId' )
+    @response( 200, {
+        description: 'Transfers filtered by Era Id',
+        content: {
+            'application/json': {
+                schema: {
+                    type: 'array',
+                    items: getModelSchemaRef( Transfer, { includeRelations: false } ),
+                },
+            },
+        },
+    } )
+    async findByEraId(
+        @param.query.number( 'eraId' ) eraId?: number,
+    ): Promise<any> {
+        if ( !eraId ) {
+            eraId = 1;
+        }
+        const filter = {
+            where: {
+                eraId: eraId ?? 1 // FIXME last Era Id
+            },
+            //limit: 100
+        };
+
+        let transfers = await this.transferRepository.find( filter );
+
+        transfers.sort( ( a: any, b: any ) => {
+            if ( parseInt( a.amount ) > parseInt( b.amount ) ) {
+                return -1;
+            } if ( parseInt( a.amount ) < parseInt( b.amount ) ) {
+                return 1;
+            } else {
+                return 0;
+            }
+        })
+
+        if ( transfers.length > 20 ) {
+            transfers = transfers.slice( 0, 20 );
+        }
+
+        if ( transfers.length ) {
+            const graph: any = new Graph(Graph.DIRECTED);
+            for ( const transfer of transfers ) {
+                graph.addEdge( transfer.fromHash, transfer.toHash );
+            }
+            for ( const transfer of transfers ) {
+                if ( graph.findPath(transfer.toHash, transfer.fromHash).length > 0 ) {
+                    transfer.toHash = 'dub-' + transfer.toHash;
+                }
+            }
+        }
+
+        const era = await this.eraRepository.findById( eraId );
+
+        return {
+            eraId: eraId,
+            eraStart: era.start,
+            eraEnd: era.end,
+            transfers: transfers
+        };
+    }
+
+    @oas.visibility( OperationVisibility.UNDOCUMENTED )
+    @authenticate( 'jwt' )
+    @post( '/transfers/approve' )
+    @response( 200, {
+        description: 'Approve transactions as unlocked',
+    } )
+    async approve(
+        @param.query.string( 'approvedIds' ) approvedIds?: string,
+        @param.query.string( 'declinedIds' ) declinedIds?: string,
+    ): Promise<void> {
+        if( approvedIds ) {
+            const approved: number[] = approvedIds.split( ',' ).map(
+                id => Number( id )
+            );
+            for ( const id of approved ) {
+                await this.transferRepository.updateById( id, {
+                    approved: true
+                } );
+            }
+        }
+        if( declinedIds ) {
+            const declined: number[] = declinedIds.split( ',' ).map(
+                id => Number( id )
+            );
+            for ( const id of declined ) {
+                await this.transferRepository.updateById( id, {
+                    approved: false
+                } );
+            }
+        }
+        const approvedTransfers = await this.transferRepository.find( {
+            where: {
+                approved: true,
+            },
+            fields: ['timestamp', 'amount', 'deployHash', 'blockHeight']
+        } ).catch();
+
+        await this.circulatingRepository.deleteAll( {
+            deployHash: { neq: '' }
+        } );
+
+        if( approvedTransfers ) {
+            let circulating = [];
+            for ( const transfer of approvedTransfers ) {
+                const block = await this.blockRepository.findById( transfer.blockHeight, {
+                    fields: ['eraId']
+                } );
+                circulating.push( {
+                    timestamp: transfer.timestamp,
+                    unlock: transfer.amount,
+                    deployHash: transfer.deployHash,
+                    blockHeight: transfer.blockHeight,
+                    eraId: block.eraId
+                } );
+            }
+            await this.circulatingRepository.createAll( circulating );
+        }
+
+        await this.circulatingService.calculateCirculatingSupply();
+    }
+
+
+    @get( '/name' )
+    @response( 200, {
+        description: 'name test',
+    } )
+    async findName(): Promise<any> {
+
+        return this.getValidatorInfo(
+            '01ba1DCfBE8DbA48B88674bb007C000391C0Ea36b5D80570c113a42a9823D702C2',
+            'fb8e0215c040691e9bbe945dd22a00989b532b9c2521582538edb95b61156698',
+            'casper'
+        );
+    }
+
+
+    /** @type {ClientCasper} */
+    client: CasperClient;
+
+    /** @type {Boolean} */
+    fetching = false;
+
+    /** @type {Number} */
+    lastFetch = 0;
+
+    /** @type {String} */
+    stateRootHash = '';
+
+    /** @type {string} */
+    dictUref = '';
+
+    /** @type {Number} */
+    CACHE_TIMEOUT = 60;
+
+
+
+    /**
+     * Retrieve validator metadata
+     * @param {String} publicKey - Public key of the validator
+     * @param {String} contractHash - Hash of the Account Info contract
+     * @param {String} network - Name of the network to query
+     * @throws NoValidatorInfos - If we can't retrieve the Validator infos this error is raised
+     */
+    async getValidatorInfo(publicKey:any, contractHash:any, network:any) {
+        console.log(await this.getValidatorUrl(publicKey, contractHash, network))
+        //try {
+            const url = (await this.getValidatorUrl(publicKey, contractHash, network)) + '/.well-known/casper/account-info.' + network + '.json';
+            return await (await fetch(url)).json();
+        //} catch (e) {
+        //    console.log( 'err' );
+        //    throw new Error( e );
+        //}
+    }
+
+    /**
+     * Retrieve validator url
+     * @param {String} publicKey - Public key of the validator
+     * @param {String} contractHash - Hash of the Account Info contract
+     * @param {String} network - Name of the network to query
+     * @throws NoValidatorInfos - If we can't retrieve the Validator infos this error is raised
+     */
+    async getValidatorUrl(publicKey:any, contractHash:any, network:any) {
+        console.log(publicKey, contractHash, network)
+        //try {
+            const clpublicKey = CLPublicKey.fromHex(publicKey);
+
+            console.log( 'PK transformed from', publicKey, clpublicKey)
+
+            const accountHash = clpublicKey.toAccountHashStr().replace('account-hash-', '');
+
+            console.log( 'accountHash', accountHash)
+
+            await this.getDictUref(contractHash);
+            return (await this.rpc.getDictionaryItemByURef(this.stateRootHash, accountHash, this.dictUref)).CLValue.data;
+        // } catch (e) {
+        //     console.log('getValidators err')
+        //     throw new Error( e );
+        // }
+    }
+
+    /**
+     * Update cached stateroothash & dicturef to optimize call to the blockchain for mass request.
+     * @param contractHash
+     * @returns {Promise<void>}
+     */
+    async getDictUref(contractHash:any) { console.log( 'called getDictUref with contractHash', contractHash)
+        if (!this.fetching && (this.lastFetch === 0 || (Math.floor(Date.now() / 1000)) - this.lastFetch > this.CACHE_TIMEOUT)) {
+            this.fetching = true;
+            console.log('fetching')
+            this.stateRootHash = await this.rpc.getStateRootHash((await this.rpc.getLatestBlockInfo()).block.hash);
+            console.log('stateRootHash', this.stateRootHash)
+            this.dictUref = (await this.rpc.getBlockState(this.stateRootHash, 'hash-' + contractHash, [])).Contract.namedKeys.filter((item:any) => item.name === 'account-info-urls')[0].key;
+
+            console.log('this.dictUref', this.dictUref)
+
+            this.lastFetch = Math.floor(Date.now() / 1000);
+            this.fetching = false;
+        }
+    }
+
+    /**
+     * Test if user have set url of their accounts
+     * @param {String} publicKey - Public key of the validator
+     * @param {String} contractHash - Hash of the Account Info contract
+     * @param {String} network - Name of the network to query
+     * @throws NoValidatorInfos - If we can't retrieve the Validator infos this error is raised
+     */
+    async isUrlSet(publicKey:any, contractHash:any, network:any) {
+        try {
+            return !!(await this.getValidatorUrl(publicKey, contractHash, network));
+        } catch (e) {
+            return false;
+        }
+    }
+}

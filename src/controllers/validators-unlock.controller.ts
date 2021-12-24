@@ -1,5 +1,5 @@
 import { repository, } from '@loopback/repository';
-import { get, getModelSchemaRef, param, post, response, } from '@loopback/rest';
+import { get, getModelSchemaRef, oas, OperationVisibility, param, post, response, } from '@loopback/rest';
 import { ValidatorsUnlock } from '../models';
 import { ValidatorsUnlockConstantsRepository, ValidatorsUnlockRepository } from '../repositories';
 import { networks } from "../configs/networks";
@@ -8,6 +8,7 @@ import { service } from "@loopback/core";
 import { CirculatingService } from "../services";
 import { authenticate } from '@loopback/authentication';
 
+@oas.visibility( OperationVisibility.UNDOCUMENTED )
 @authenticate('jwt')
 export class ValidatorsUnlockController {
     constructor(
@@ -20,7 +21,7 @@ export class ValidatorsUnlockController {
     ) {
     }
 
-    @post( '/api/validators-unlock' )
+    @post( '/validators-unlock' )
     @response( 200, {
         description: 'ValidatorsUnlock model instance',
         content: { 'application/json': { schema: getModelSchemaRef( ValidatorsUnlock ) } },
@@ -40,7 +41,7 @@ export class ValidatorsUnlockController {
         await this.calculateValidatorsUnlocks();
     }
 
-    @get( '/api/validators-unlock' )
+    @get( '/validators-unlock' )
     @response( 200, {
         description: 'Array of ValidatorsUnlock model instances',
         content: {

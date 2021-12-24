@@ -5,7 +5,7 @@ import { EraRepository } from '../repositories';
 import { NotFound } from "../errors/errors";
 import { authenticate } from '@loopback/authentication';
 
-@authenticate.skip()
+//@authenticate.skip()
 export class EraController {
     constructor(
         @repository( EraRepository )
@@ -98,6 +98,7 @@ export class EraController {
         @param.query.dateTime( 'timestamp' ) timestamp?: string,
         @param.query.number( 'limit' ) limit?: number,
         @param.query.string( 'order' ) order?: string[],
+        @param.query.string( 'skip' ) skip?: number,
     ): Promise<Era[]> {
         let filter: Filter<Era> = {
             // TODO: Define a max limit.
@@ -106,6 +107,10 @@ export class EraController {
             skip: ( id !== undefined || blockHeight !== undefined || timestamp ) ? 0 : 1,
             where: this._calcSupplyQueryFilter( id, blockHeight, timestamp ),
         };
+
+        if ( skip ) {
+            filter.skip = skip;
+        }
 
         return this.eraRepository.find( filter );
     }
