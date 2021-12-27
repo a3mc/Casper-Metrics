@@ -27,7 +27,7 @@ export class RedisService {
     }
 
     private _createClient(): RedisClientSet {
-        const client = redis.createClient( { db: process.env.REDIS_DB || 1 } );
+        const client = redis.createClient( { db: process.env.REDIS_DB ?? 0 } );
         return {
             client: client,
             getAsync: promisify( client.get ).bind( client ),

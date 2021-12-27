@@ -1,6 +1,6 @@
 import { logger } from '../logger';
 import { CrawlerService, RedisService } from '../services';
-import { LifeCycleObserver, lifeCycleObserver, service } from '@loopback/core';
+import { lifeCycleObserver, service } from '@loopback/core';
 import moment from 'moment';
 import { finished } from "stream";
 
@@ -10,7 +10,7 @@ export interface BlockStakeInfo {
     undelegated: bigint;
 }
 
-//@lifeCycleObserver()
+@lifeCycleObserver()
 export class CrawlerController {
     private lastCalculated: number;
     private queuedBlocks: number;
@@ -23,6 +23,8 @@ export class CrawlerController {
         @service( CrawlerService ) private crawlerService: CrawlerService,
         @service( RedisService ) private redisService: RedisService,
     ) {
+        console.log( 'Hello crawler')
+
         this.redisService.sub.client.on( 'message', ( channel: string, message: string ) => {
 
             if ( channel === 'register' ) {
@@ -58,6 +60,10 @@ export class CrawlerController {
         }, 7000 );
     }
 
+    public async stop(): Promise<void> {
+        logger.info( 'Crawler is stopping.' );
+    }
+
     private reset(): void {
         this.lastCalculated = 0;
         this.queuedBlocks = 0;
@@ -82,6 +88,8 @@ export class CrawlerController {
                 this.scheduleCrawling();
                 throw new Error();
             } );
+
+        this.lastBlockHeight = 10000;
 
         this.queuedBlocks = 0;
         this.processedBlocks = 0;

@@ -10,7 +10,8 @@ module.exports = {
                 'NODE_ENV': 'production',
                 'PUBLIC_API_PORT': '3000',
                 'DATABASE': 'mainnet',
-                'NETWORK': 'mainnet'
+                'NETWORK': 'mainnet',
+                'REDIS_DB': 0
             }
         },
         {
@@ -23,7 +24,8 @@ module.exports = {
                 'NODE_ENV': 'production',
                 'PUBLIC_API_PORT': '3001',
                 'DATABASE': 'testnet',
-                'NETWORK': 'testnet'
+                'NETWORK': 'testnet',
+                'REDIS_DB': 1
             }
         },
         {
@@ -36,7 +38,8 @@ module.exports = {
                 'NODE_ENV': 'production',
                 'PUBLIC_API_PORT': '3010',
                 'DATABASE': 'devmainnet',
-                'NETWORK': 'mainnet'
+                'NETWORK': 'mainnet',
+                'REDIS_DB': 2
             }
         },
         {
@@ -49,19 +52,35 @@ module.exports = {
                 'NODE_ENV': 'production',
                 'PUBLIC_API_PORT': '3011',
                 'DATABASE': 'devtestnet',
-                'NETWORK': 'testnet'
+                'NETWORK': 'testnet',
+                'REDIS_DB': 3
             }
         },
-        // {
-        //     name: 'crawler-worker',
-        //     script: './dist/workers/crawler.worker.js',
-        //     instances: 4,
-        //     exec_mode: 'cluster',
-        //
-        //     max_memory_restart: '4G',
-        //     env: {
-        //         'NODE_ENV': 'production',
-        //     }
-        // }
+        {
+            script: './dist/crawler.js',
+            name: 'mainnet-dev-crawler',
+            max_memory_restart: '2G',
+            exec_mode: 'fork',
+            watch: false,
+            env: {
+                'NODE_ENV': 'production',
+                'DATABASE': 'devtestnet',
+                'NETWORK': 'devmainnet',
+                'REDIS_DB': 2
+            }
+        },
+        {
+            name: 'mainnet-dev-crawler-worker',
+            script: './dist/workers/crawler.worker.js',
+            instances: 1,
+            exec_mode: 'cluster',
+            max_memory_restart: '2G',
+            watch: false,
+            env: {
+                'NODE_ENV': 'production',
+                'DATABASE': 'devmainnet',
+                'REDIS_DB': 2
+            }
+        }
     ],
 };

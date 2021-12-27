@@ -40,6 +40,7 @@ export class CrawlerWorker {
 
             if ( channel === 'control' && message === 'start' ) {
                 if ( this._asyncQueue.length ) {
+                    console.log( `Starting crawling ${ this._asyncQueue.length } blocks` )
                     this._isCrawling = true;
                     await this.crawlerService.getLastBlockHeight();
                     async.parallelLimit(
