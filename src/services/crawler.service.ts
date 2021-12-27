@@ -1,6 +1,6 @@
 import { BindingScope, injectable, service } from '@loopback/core';
 import { logger } from '../logger';
-import { CasperServiceByJsonRPC, PublicKey } from 'casper-client-sdk';
+import { CasperServiceByJsonRPC } from 'casper-client-sdk';
 import { BlockStakeInfo } from '../controllers';
 import { Block, Era, Transfer } from '../models';
 import { networks } from '../configs/networks';
@@ -28,6 +28,7 @@ export interface CasperServiceSet {
 @injectable( { scope: BindingScope.TRANSIENT } )
 export class CrawlerService {
     private _casperServices: CasperServiceSet[] = [];
+    private _networks: any = [];
     private _minRpcNodes = 5;
 
     constructor(
@@ -38,13 +39,19 @@ export class CrawlerService {
         @service( RedisService ) public redisService: RedisService,
         @service( CirculatingService ) public circulatingService: CirculatingService,
     ) {
-        logger.info( 'Service init.' );
+        this._setNetworks();
     }
 
     public async getLastBlockHeight(): Promise<number> {
         this._casperServices = [];
-        logger.info( 'Trying to init %d nodes', networks.rpc_nodes.length );
-        for ( const node of networks.rpc_nodes ) {
+
+        if ( this._networks.rpc_nodes.length < this._minRpcNodes ) {
+            this._setNetworks();
+        }
+
+        logger.info( 'Trying to init %d nodes', this._networks.rpc_nodes.length );
+
+        for ( const node of this._networks.rpc_nodes ) {
             const casperServiceSet: CasperServiceSet = {
                 node: new CasperServiceByJsonRPC(
                     'http://' + node + ':7777/rpc'
@@ -56,15 +63,14 @@ export class CrawlerService {
                 blockInfo = await this._getLastBlockWithTimeout( casperServiceSet.node )
             } catch ( error ) {
                 logger.warn( 'Failed to init Casper Node %s', node );
-                logger.warn( error );
-                networks.rpc_nodes.splice( networks.rpc_nodes.indexOf( node ), 1 );
+                networks.rpc_nodes.splice( this._networks.rpc_nodes.indexOf( node ), 1 );
                 continue;
             }
 
             try {
                 casperServiceSet.lastBlock = blockInfo.block.header.height;
             } catch ( error ) {
-                networks.rpc_nodes.splice( networks.rpc_nodes.indexOf( node ), 1 );
+                networks.rpc_nodes.splice( this._networks.rpc_nodes.indexOf( node ), 1 );
                 continue;
             }
             this._casperServices.push( casperServiceSet );
@@ -190,7 +196,7 @@ export class CrawlerService {
 
         const lastCalculated: number = Number( await this.redisService.client.getAsync( 'lastcalc' ) );
         const blocks: Block[] = await this.blocksRepository.find( {
-            where: { blockHeight: { gt: lastCalculated || -1 } }
+            where: { blockHeight: { gt: lastCalculated ?? -1 } }
         } );
 
         let era;
@@ -289,6 +295,10 @@ export class CrawlerService {
         await this.redisService.client.setAsync( 'lastcalc', blocks[blocks.length - 1].blockHeight );
         await this.redisService.client.setAsync( 'calculating', 0 );
         logger.info( 'Calculation finished.' );
+    }
+
+    private _setNetworks(): void {
+        this._networks = Object.assign( [], networks );
     }
 
     private _casperService(): CasperServiceByJsonRPC {
@@ -479,10 +489,13 @@ export class CrawlerService {
                                 }
                             }
 
+                            console.log( blockHeight, deployResult.deploy.header )
+
                             await this.transferRepository.create( {
                                 timestamp: deployResult.deploy.header.timestamp,
                                 blockHeight: blockHeight,
                                 depth: 0,
+                                eraId: 0,
                                 deployHash: transfer.deploy_hash,
                                 from: deployResult.deploy.header.account,
                                 fromHash: transfer.from,
