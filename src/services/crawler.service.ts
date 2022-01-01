@@ -202,71 +202,17 @@ export class CrawlerService {
 
 		const lastCalculated: number = Number( await this.redisService.client.getAsync( 'lastcalc' ) );
 		const blocks: Block[] = await this.blocksRepository.find( {
-			where: { blockHeight: { gt: lastCalculated ?? -1 } },
+			where: { blockHeight: { gt: lastCalculated || -1 } },
 		} );
 
 		let era;
 		let blockCount = 0;
 		for ( const block of blocks ) {
-			const blockTransfers: Transfer[] = await this.transferRepository.find( {
-				where: {
-					blockHeight: block.blockHeight,
-				},
-			} );
-
-			for ( const transfer of blockTransfers ) {
-				let depth = 0;
-				if ( networks.locked_wallets.includes( transfer.from.toUpperCase() ) ) {
-					depth = 1;
-				} else {
-					const foundTransfer: Transfer | null | void = await this.transferRepository.findOne( {
-						where: {
-							toHash: transfer.fromHash,
-							and: [
-								{
-									depth: {
-										lt: 3,
-									},
-								},
-								{
-									depth: {
-										gt: 0,
-									},
-								},
-							],
-						},
-						order: ['depth ASC'],
-						fields: ['depth'],
-					} );
-
-					if ( foundTransfer ) {
-						depth = foundTransfer.depth + 1;
-					}
-				}
-				if ( depth ) {
-					transfer.depth = depth;
-					/* Try to find find hex address for "to" account */
-					if ( !transfer.to ) {
-						const knownAccount = await this.knownAccountRepository.findOne( {
-							where: {
-								hash: transfer.toHash,
-								hex: {
-									neq: '',
-								},
-							},
-						} ).catch( () => {
-						} );
-						if ( knownAccount ) {
-							transfer.to = knownAccount.hex;
-						}
-					}
-
-					await this.transferRepository.updateById( transfer.id, transfer );
-				}
-			}
+			await this._updateBlockTransfers( block );
 
 			let prevDiff = BigInt( 0 );
 			let prevBlock: Block | null = null;
+
 			if ( block.blockHeight > 0 ) {
 				if ( blockCount > 0 ) {
 					prevBlock = blocks[blockCount - 1];
@@ -302,6 +248,65 @@ export class CrawlerService {
 		await this.redisService.client.setAsync( 'lastcalc', blocks[blocks.length - 1].blockHeight );
 		await this.redisService.client.setAsync( 'calculating', 0 );
 		logger.info( 'Calculation finished.' );
+	}
+
+	private async _updateBlockTransfers( block: Block ): Promise<void> {
+		const blockTransfers: Transfer[] = await this.transferRepository.find( {
+			where: {
+				blockHeight: block.blockHeight,
+			},
+		} );
+
+		for ( const transfer of blockTransfers ) {
+			let depth = 0;
+			if ( networks.locked_wallets.includes( transfer.from.toUpperCase() ) ) {
+				depth = 1;
+			} else {
+				const foundTransfer: Transfer | null | void = await this.transferRepository.findOne( {
+					where: {
+						toHash: transfer.fromHash,
+						and: [
+							{
+								depth: {
+									lt: 3,
+								},
+							},
+							{
+								depth: {
+									gt: 0,
+								},
+							},
+						],
+					},
+					order: ['depth ASC'],
+					fields: ['depth'],
+				} );
+
+				if ( foundTransfer ) {
+					depth = foundTransfer.depth + 1;
+				}
+			}
+			if ( depth ) {
+				transfer.depth = depth;
+				/* Try to find find hex address for "to" account */
+				if ( !transfer.to ) {
+					const knownAccount = await this.knownAccountRepository.findOne( {
+						where: {
+							hash: transfer.toHash,
+							hex: {
+								neq: '',
+							},
+						},
+					} ).catch( () => {
+					} );
+					if ( knownAccount ) {
+						transfer.to = knownAccount.hex;
+					}
+				}
+
+				await this.transferRepository.updateById( transfer.id, transfer );
+			}
+		}
 	}
 
 	private async _testRpcNode( ip: string ): Promise<void> {

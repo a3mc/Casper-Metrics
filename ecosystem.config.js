@@ -72,7 +72,7 @@ module.exports = {
         {
             name: 'mainnet-dev-crawler-worker',
             script: './dist/workers/crawler.worker.js',
-            instances: 1,
+            instances: 2,
             exec_mode: 'cluster',
             max_memory_restart: '2G',
             watch: false,

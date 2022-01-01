@@ -30,7 +30,7 @@
         "premigrate": "npm run build",
         "migrate": "node ./dist/migrate",
         "migrate:erase:prod": "npm run migrate -- --rebuild && redis-cli -n 0 flushdb",
-        "migrate:erase:dev": "npm run migrate -- --rebuild && redis-cli -n 1 flushdb",
+        "migrate:erase:dev": "npm run migrate -- --rebuild && redis-cli -n 2 flushdb",
         "preopenapi-spec": "npm run build",
         "openapi-spec": "node ./dist/openapi-spec",
         "prestart": "npm run rebuild",
