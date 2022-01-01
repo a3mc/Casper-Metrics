@@ -13,7 +13,7 @@ import { MetricsDbDataSource } from '../datasources';
 import * as async from 'async';
 
 export class CrawlerWorker {
-    private _parallelLimit = 100;
+    private _parallelLimit = 200;
     private _asyncQueue: any = [];
     private _isCrawling = false;
 
@@ -40,9 +40,9 @@ export class CrawlerWorker {
 
             if ( channel === 'control' && message === 'start' ) {
                 if ( this._asyncQueue.length ) {
-                    console.log( `Starting crawling ${ this._asyncQueue.length } blocks` )
+                    logger.info( `Starting crawling ${ this._asyncQueue.length } blocks` )
                     this._isCrawling = true;
-                    await this.crawlerService.getLastBlockHeight();
+                    await this.crawlerService.setCasperServices();
                     async.parallelLimit(
                         this._asyncQueue,
                         this._parallelLimit,
