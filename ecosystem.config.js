@@ -57,6 +57,19 @@ module.exports = {
             }
         },
         {
+            name: 'mainnet-prod-crawler-worker',
+            script: './dist/workers/crawler.worker.js',
+            instances: 4,
+            exec_mode: 'cluster',
+            max_memory_restart: '2G',
+            watch: false,
+            env: {
+                'NODE_ENV': 'production',
+                'DATABASE': 'mainnet',
+                'REDIS_DB': 0
+            }
+        },
+        {
             name: 'mainnet-dev-crawler-worker',
             script: './dist/workers/crawler.worker.js',
             instances: 4,
