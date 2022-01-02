@@ -11,6 +11,7 @@ export interface RedisClientSet {
     setAsync: any;
     incrbyAsync: any;
     decrbyAsync: any;
+    deleteAsync: any;
 }
 
 
@@ -34,6 +35,7 @@ export class RedisService {
             setAsync: promisify( client.set ).bind( client ),
             incrbyAsync: promisify( client.incrby ).bind( client ),
             decrbyAsync: promisify( client.decrby ).bind( client ),
+            deleteAsync: promisify( client.del ).bind( client ),
         };
     }
 }

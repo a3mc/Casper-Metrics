@@ -18,13 +18,12 @@ export class CrawlerController {
     private lastBlockHeight: number;
     private finishedWorkers: number;
     private workers: number[] = [];
+    private blocksBatchSize = 25000;
 
     constructor(
         @service( CrawlerService ) private crawlerService: CrawlerService,
         @service( RedisService ) private redisService: RedisService,
     ) {
-        console.log( 'Hello crawler')
-
         this.redisService.sub.client.on( 'message', ( channel: string, message: string ) => {
 
             if ( channel === 'register' ) {
@@ -57,7 +56,7 @@ export class CrawlerController {
         await this.redisService.client.setAsync( 'calculating', 0 );
         setTimeout( async () => {
             await this.crawl();
-        }, 7000 );
+        }, 5000 );
     }
 
     public async stop(): Promise<void> {
@@ -88,8 +87,8 @@ export class CrawlerController {
                 this.scheduleCrawling();
                 throw new Error();
             } );
-
-        this.lastBlockHeight = 10000;
+        //
+        // this.lastBlockHeight = 102200;
 
         this.queuedBlocks = 0;
         this.processedBlocks = 0;
@@ -108,7 +107,7 @@ export class CrawlerController {
         }
     }
 
-    private startCalculating() {
+    private startCalculating(): void {
         this.crawlerService.calcBlocksAndEras().then(
             () => {
                 logger.info( 'Blocks and eras are calculated. Scheduled re-crawling.' );
@@ -126,11 +125,14 @@ export class CrawlerController {
 
     private async collectBlocksToCrawl(): Promise<void> {
         let worker = 0;
+
         for ( let blockHeight = this.lastCalculated + 1; blockHeight <= this.lastBlockHeight; blockHeight++ ) {
             /* Add unprocessed blocks to the queue */
-            if ( !await this.redisService.client.getAsync( 'b' + String( blockHeight ) ) ) {
+            if (
+                !await this.redisService.client.getAsync( 'b' + String( blockHeight ) ) &&
+                this.queuedBlocks < this.blocksBatchSize
+            ) {
                 this.queuedBlocks++;
-
                 this.redisService.pub.client.publish( 'create' + this.workers[worker], String( blockHeight ) );
                 worker++;
                 if ( worker > this.workers.length - 1 ) {
@@ -142,9 +144,9 @@ export class CrawlerController {
 
     private async scheduleCrawling(): Promise<void> {
         this.redisService.pub.client.publish( 'control', 'stop' );
-        logger.info( 'Re-crawling in 30 seconds' );
+        logger.info( 'Re-crawling in 10 seconds' );
         setTimeout( () => {
             this.crawl();
-        }, 30000 );
+        }, 10000 );
     }
 }

@@ -57,22 +57,9 @@ module.exports = {
             }
         },
         {
-            script: './dist/crawler.js',
-            name: 'mainnet-dev-crawler',
-            max_memory_restart: '2G',
-            exec_mode: 'fork',
-            watch: false,
-            env: {
-                'NODE_ENV': 'production',
-                'DATABASE': 'devtestnet',
-                'NETWORK': 'devmainnet',
-                'REDIS_DB': 2
-            }
-        },
-        {
             name: 'mainnet-dev-crawler-worker',
             script: './dist/workers/crawler.worker.js',
-            instances: 1,
+            instances: 4,
             exec_mode: 'cluster',
             max_memory_restart: '2G',
             watch: false,
