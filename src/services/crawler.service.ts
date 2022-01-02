@@ -18,7 +18,6 @@ import moment from 'moment';
 import { CirculatingService } from './circulating.service';
 import dotenv from 'dotenv';
 import * as async from 'async';
-
 dotenv.config();
 
 export interface CasperServiceSet {
@@ -33,9 +32,10 @@ export interface CasperServiceSet {
 export class CrawlerService {
 	private _casperServices: CasperServiceSet[] = [];
 	private _activeRpcNodes: string[] = [];
-	private _minRpcNodes = 5;
-	private _maxRpcBanLevel = 5;
+	private _minRpcNodes = 15;
+	private _maxRpcBanLevel = 10;
 	private _rateLimit = 200; // Queries per RPC node in ms.
+	private _calcBatchSize = 25000;
 
 	constructor(
 		@repository( EraRepository ) public eraRepository: EraRepository,
@@ -96,9 +96,8 @@ export class CrawlerService {
 		const blockInfo: any = await service.node.getBlockInfoByHeight( blockHeight )
 			.catch( async () => {
 				await this._banService( service );
-				throw new Error();
+				throw new Error( 'Cant getblock info in createBLock' );
 			} );
-
 
 		const stateRootHash: string = blockInfo.block.header.state_root_hash;
 		const totalSupply: bigint = await this._getTotalSupply( stateRootHash );
@@ -110,17 +109,19 @@ export class CrawlerService {
 			delegated: BigInt( 0 ),
 			undelegated: BigInt( 0 ),
 		};
+
+		const eraId: number = blockInfo.block.header.era_id;
+
 		if ( blockInfo.block.body.deploy_hashes?.length ) {
 		    deploys = blockInfo.block.body.deploy_hashes.length;
 		    staked = await this._processDeploys( blockInfo.block.body.deploy_hashes );
 		}
 
 		if ( blockInfo.block.body.transfer_hashes?.length ) {
-		    transfers = blockInfo.block.body.transfer_hashes.length
-		    await this._processTransfers( blockInfo.block.body.transfer_hashes, blockHeight );
+		    transfers = blockInfo.block.body.transfer_hashes.length;
+		    await this._processTransfers( blockInfo.block.body.transfer_hashes, blockHeight, eraId );
 		}
 
-		const eraId: number = blockInfo.block.header.era_id;
 		let isSwitchBlock = false;
 		let nextEraValidatorsWeights = BigInt( 0 );
 		let validatorsSum = BigInt( 0 );
@@ -154,7 +155,7 @@ export class CrawlerService {
 					this._banService( service );
 		            logger.error( 'Error getting chain_get_era_info_by_switch_block')
 		            throw new Error( error );
-		        });
+		        } );
 		    const allocations = result.era_summary.stored_value.EraInfo.seigniorage_allocations;
 
 		    // TODO: count unique
@@ -197,20 +198,31 @@ export class CrawlerService {
 	}
 
 	public async calcBlocksAndEras(): Promise<void> {
-		logger.info( 'Calculation started.' );
+
 		await this.redisService.client.setAsync( 'calculating', 1 );
 
 		const lastCalculated: number = Number( await this.redisService.client.getAsync( 'lastcalc' ) );
-		const blocks: Block[] = await this.blocksRepository.find( {
+		let blocks: Block[] = await this.blocksRepository.find( {
 			where: { blockHeight: { gt: lastCalculated || -1 } },
 		} );
+		const totalBlockSize = blocks.length;
+
+		if ( totalBlockSize > this._calcBatchSize ) {
+			logger.info(
+				'Calculation started. Taking %d of %d blocks total',
+				this._calcBatchSize,
+				totalBlockSize
+			);
+			blocks = blocks.slice( 0, this._calcBatchSize );
+		} else {
+			logger.info( 'Calculation started. Processing %d blocks', totalBlockSize );
+		}
 
 		let era;
 		let blockCount = 0;
-		for ( const block of blocks ) {
-			await this._updateBlockTransfers( block );
 
-			let prevDiff = BigInt( 0 );
+		for ( const block of blocks ) {
+			// await this._updateBlockTransfers( block );
 			let prevBlock: Block | null = null;
 
 			if ( block.blockHeight > 0 ) {
@@ -219,7 +231,6 @@ export class CrawlerService {
 				} else {
 					prevBlock = await this.blocksRepository.findById( block.blockHeight - 1 );
 				}
-				prevDiff = BigInt( prevBlock.stakedDiffSinceGenesis );
 			} else {
 				await this._createGenesisEra( block );
 				era = await this.eraRepository.findById( block.eraId );
@@ -245,9 +256,25 @@ export class CrawlerService {
 			}
 			blockCount++;
 		}
+
+		const asyncQueue = [];
+		for ( const block of blocks ) {
+			asyncQueue.push( async () => {
+				await this._updateBlockTransfers( block );
+			} );
+		}
+		const now = moment().valueOf();
+		await async.parallelLimit( asyncQueue, 1000 );
+		logger.info( moment().valueOf() - now );
+
 		await this.redisService.client.setAsync( 'lastcalc', blocks[blocks.length - 1].blockHeight );
-		await this.redisService.client.setAsync( 'calculating', 0 );
-		logger.info( 'Calculation finished.' );
+
+		if ( totalBlockSize > this._calcBatchSize ) {
+			await this.calcBlocksAndEras();
+		} else {
+			await this.redisService.client.setAsync( 'calculating', 0 );
+			logger.info( 'Calculation finished.' );
+		}
 	}
 
 	private async _updateBlockTransfers( block: Block ): Promise<void> {
@@ -297,8 +324,7 @@ export class CrawlerService {
 								neq: '',
 							},
 						},
-					} ).catch( () => {
-					} );
+					} ).catch();
 					if ( knownAccount ) {
 						transfer.to = knownAccount.hex;
 					}
@@ -351,11 +377,11 @@ export class CrawlerService {
 	private async _banService( service: CasperServiceSet ): Promise<void> {
 		let banLevel = Number( await this.redisService.client.getAsync( 'ban' + service.ip ) );
 		banLevel ++;
-		if ( banLevel > this._maxRpcBanLevel ) {
-			await this._deleteService( service.ip );
-			logger.warn( 'Removed %s from the list due to %d ban level', service.ip, banLevel );
-			return;
-		}
+		// if ( banLevel > this._maxRpcBanLevel ) {
+		// 	await this._deleteService( service.ip );
+		// 	logger.warn( 'Removed %s from the list due to %d ban level', service.ip, banLevel );
+		// 	return;
+		// }
 		await this.redisService.client.setAsync( 'ban' + service.ip, banLevel.toString() );
 		logger.warn( 'Banned %s to %d level', service.ip, banLevel );
 	}
@@ -391,7 +417,9 @@ export class CrawlerService {
 			const banned: string = await this.redisService.client.getAsync( 'ban' + service.ip );
 			service.lastQueried = parseInt( lastQueried ?? '0' );
 			service.banLevel = parseInt( banned ?? '0' );
-			rpcs.push( service );
+			if ( ! service.banLevel ) {
+				rpcs.push( service );
+			}
 		}
 
 		rpcs.sort( ( a: CasperServiceSet, b: CasperServiceSet ) => {
@@ -399,7 +427,11 @@ export class CrawlerService {
 		} );
 
 		await this.redisService.client.setAsync( 'rpc' + rpcs[0].ip, moment().valueOf().toString() );
-		//logger.info( rpcs[0].ip )
+
+		if( rpcs[0].banLevel ) {
+			await this._sleep( rpcs[0].banLevel * 100 );
+			await this.redisService.client.setAsync( 'rpc' + rpcs[0].ip, moment().valueOf().toString() );
+		}
 		return rpcs[0];
 	}
 
@@ -527,7 +559,7 @@ export class CrawlerService {
 			throw new Error();
 		} );
 
-		return BigInt( blockState.CLValue.value.val );
+		return BigInt( blockState.CLValue.data );
 	}
 
 	private async _getValidatorsWeights( weights: any ): Promise<bigint> {
@@ -538,7 +570,7 @@ export class CrawlerService {
 		return validatorWeights;
 	}
 
-	private async _processTransfers( transferHashes: string[], blockHeight: number ): Promise<void> {
+	private async _processTransfers( transferHashes: string[], blockHeight: number, eraId: number ): Promise<void> {
 
 		for ( const hash of transferHashes ) {
 			const service = await this._getCasperService();
@@ -551,12 +583,15 @@ export class CrawlerService {
 			for ( const executionResult of deployResult.execution_results ) {
 				if ( executionResult?.result?.Success?.effect ) {
 					for ( const transform of executionResult.result.Success.effect.transforms ) {
+						const transformKey = transform.key.toLowerCase();
+						const successTransfers = executionResult.result.Success.transfers.map(
+							( item: string ) => item.toLowerCase()
+						);
 						if (
-							transform.transform.WriteTransfer &&
-							executionResult.result.Success.transfers.includes( transform.key )
+							transform.transform.WriteTransfer  &&
+							successTransfers.includes( transformKey )
 						) {
 							const transfer = transform.transform.WriteTransfer;
-
 							let knownHex = '';
 							let knownAccount = await this.knownAccountRepository.findOne( {
 								where: {
@@ -565,8 +600,8 @@ export class CrawlerService {
 										neq: '',
 									},
 								},
-							} ).catch( () => {
-							} );
+							} ).catch();
+
 							if ( knownAccount ) {
 								knownHex = knownAccount.hex || '';
 							}
@@ -578,8 +613,7 @@ export class CrawlerService {
 										neq: '',
 									},
 								},
-							} ).catch( () => {
-							} );
+							} ).catch();
 
 							if ( !knownAccount ) {
 								try {
@@ -592,13 +626,12 @@ export class CrawlerService {
 								}
 							}
 
-							console.log( blockHeight, deployResult.deploy.header );
-
+							logger.info( 'creating transfer' );
 							await this.transferRepository.create( {
 								timestamp: deployResult.deploy.header.timestamp,
 								blockHeight: blockHeight,
 								depth: 0,
-								eraId: 0,
+								eraId: eraId,
 								deployHash: transfer.deploy_hash,
 								from: deployResult.deploy.header.account,
 								fromHash: transfer.from,
