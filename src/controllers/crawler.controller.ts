@@ -84,7 +84,10 @@ export class CrawlerController {
     }
 
     private async crawl() {
-        if ( !!Number( await this.redisService.client.getAsync( 'calculating' ) ) ) {
+        if (
+            !!Number( await this.redisService.client.getAsync( 'calculating' ) ) ||
+            !this.workers.length
+        ) {
             await this.scheduleCrawling();
             return;
         }
@@ -178,7 +181,6 @@ export class CrawlerController {
     }
 
     private async scheduleCrawling(): Promise<void> {
-        logger.debug( 'Re-crawling in 10 seconds' );
         clearInterval( this.meterInterval );
         clearTimeout( this.crawlerTimer );
         this.crawlerTimer = setTimeout( () => {
