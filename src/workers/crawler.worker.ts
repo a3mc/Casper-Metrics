@@ -29,8 +29,9 @@ export class CrawlerWorker {
                 this._asyncQueue.push( async () => {
                         let result: boolean = true;
                         await this.crawlerService.createBlock( blockHeight )
-                            .catch( () => {
+                            .catch( ( error ) => {
                                 result = false;
+                                logger.debug( error );
                                 this.redisService.pub.client.publish( 'error', String( blockHeight ) );
                             } );
                         if ( result ) {
@@ -50,10 +51,12 @@ export class CrawlerWorker {
                         this._asyncQueue,
                         this._parallelLimit,
                         () => {
-                            this._isCrawling = false;
-                            this._asyncQueue = [];
                             logger.debug( 'Job done' );
-                            this.redisService.pub.client.publish( 'control', 'finished' );
+                            if ( this._isCrawling ) {
+                                this._isCrawling = false;
+                                this.redisService.pub.client.publish( 'control', 'finished' );
+                            }
+                            this._asyncQueue = [];
                         }
                     );
                 } else {
@@ -65,6 +68,9 @@ export class CrawlerWorker {
             }
 
             if ( channel === 'control' && message === 'stop' ) {
+                if ( this._isCrawling ) {
+                    this.redisService.pub.client.publish( 'control', 'finished' );
+                }
                 this._isCrawling = false;
                 this._asyncQueue = [];
             }

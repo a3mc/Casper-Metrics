@@ -88,10 +88,10 @@ export class CrawlerService {
 	}
 
 	public async createBlock( blockHeight: number ): Promise<void> {
-		//await this._sleep( 1000 );
 		if ( await this.blocksRepository.exists( blockHeight ) ) {
 			await this.blocksRepository.deleteById( blockHeight );
 		}
+		await this.transferRepository.deleteAll( { blockHeight: blockHeight } );
 
 		const service = await this._getCasperService();
 		const blockInfo: any = await service.node.getBlockInfoByHeight( blockHeight )
@@ -233,6 +233,9 @@ export class CrawlerService {
 					prevBlock = await this.blocksRepository.findById( block.blockHeight - 1 );
 				}
 			} else {
+				if ( await this.eraRepository.exists( 0 ) ) {
+					await this.eraRepository.deleteById( 0 );
+				}
 				await this._createGenesisEra( block );
 				era = await this.eraRepository.findById( block.eraId );
 			}
@@ -563,9 +566,9 @@ export class CrawlerService {
 		for ( const hash of transferHashes ) {
 			const service = await this._getCasperService();
 			const deployResult: any = await service.node.getDeployInfo( hash )
-				.catch( async () => {
+				.catch( async ( error ) => {
 					await this._banService( service );
-					throw new Error();
+					throw new Error( error );
 				} );
 
 			for ( const executionResult of deployResult.execution_results ) {
