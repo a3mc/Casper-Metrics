@@ -1,5 +1,5 @@
 import { logger } from '../logger';
-import { CrawlerService, RedisService } from '../services';
+import { CrawlerService, GeodataService, RedisService } from '../services';
 import { lifeCycleObserver, service } from '@loopback/core';
 import { finished } from "stream";
 import dotenv from 'dotenv';
@@ -28,6 +28,7 @@ export class CrawlerController {
     constructor(
         @service( CrawlerService ) private crawlerService: CrawlerService,
         @service( RedisService ) private redisService: RedisService,
+        @service( GeodataService ) private geodataService: GeodataService,
     ) {
         this.redisService.sub.client.on( 'message', ( channel: string, message: string ) => {
 
@@ -45,7 +46,7 @@ export class CrawlerController {
                 this.finishedWorkers++;
                 logger.debug( 'Worker finished: %d', this.finishedWorkers );
 
-                if ( this.finishedWorkers === this.workers.length ) {
+                if ( this.finishedWorkers >= this.workers.length ) {
                     clearInterval( this.meterInterval );
                     logger.info( 'Processed/Queued blocks: %d / %d', this.processedBlocks, this.queuedBlocks )
                     if ( this.queuedBlocks === this.processedBlocks ) {
@@ -87,6 +88,9 @@ export class CrawlerController {
             await this.scheduleCrawling();
             return;
         }
+        logger.debug( 'Checking if geodata needs to be updated' );
+        await this.geodataService.checkForUpdate();
+
         logger.info( 'Start crawling cycle.' );
         clearInterval( this.meterInterval );
 
@@ -112,17 +116,28 @@ export class CrawlerController {
 
         if ( this.queuedBlocks ) {
             this.redisService.pub.client.publish( 'control', 'start' );
-            this.meterInterval = setInterval( () => {
-                logger.debug(
-                    'Crawled %d of %d blocks with %d errors',
-                    this.processedBlocks,
-                    this.queuedBlocks,
-                    this.errorBlocks
-                );
-            }, 5000 );
+            this._setCrawlingMeter();
         } else {
             await this.scheduleCrawling();
         }
+    }
+
+    private _setCrawlingMeter(): void {
+        this.meterInterval = setInterval( () => {
+            logger.debug(
+                'Crawled %d of %d blocks with %d errors in 1 minute',
+                this.processedBlocks,
+                this.queuedBlocks,
+                this.errorBlocks
+            );
+            if ( this.processedBlocks === this.lastProcessedBlocks ) {
+                logger.debug( 'Crawling stacked, stopping workers' );
+                this.redisService.pub.client.publish( 'control', 'stop' );
+                clearInterval( this.meterInterval );
+            } else {
+                this.lastProcessedBlocks = this.processedBlocks;
+            }
+        }, 60000 );
     }
 
     private startCalculating(): void {
@@ -163,7 +178,6 @@ export class CrawlerController {
     }
 
     private async scheduleCrawling(): Promise<void> {
-        this.redisService.pub.client.publish( 'control', 'stop' );
         logger.debug( 'Re-crawling in 10 seconds' );
         clearInterval( this.meterInterval );
         clearTimeout( this.crawlerTimer );

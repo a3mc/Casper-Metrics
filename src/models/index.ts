@@ -7,3 +7,4 @@ export * from './validators-unlock.model';
 export * from './validators-unlock-constants.model';
 export * from './user.model';
 export * from './price.model';
+export * from './peers.model';

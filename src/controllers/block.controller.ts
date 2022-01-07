@@ -112,8 +112,15 @@ export class BlockController {
     private async _getLastCirculatingSupply( block: Partial<Block> ): Promise<bigint> {
         let circulatingSupply = BigInt( 0 );
         if ( block && block.eraId ) {
-            const blockEra = await this.eraRepository.findById( block.eraId );
-            circulatingSupply = blockEra.circulatingSupply;
+            const blockEra = await this.eraRepository.findOne( {
+                where: {
+                    id: block.eraId
+                }
+            } ).catch();
+
+            if ( blockEra && blockEra.circulatingSupply ) {
+                circulatingSupply = blockEra.circulatingSupply;
+            }
         }
         return circulatingSupply;
     }
