@@ -1,8 +1,9 @@
 import { logger } from '../logger';
 import { CrawlerService, RedisService } from '../services';
 import { lifeCycleObserver, service } from '@loopback/core';
-import moment from 'moment';
 import { finished } from "stream";
+import dotenv from 'dotenv';
+dotenv.config();
 
 export interface BlockStakeInfo {
     amount: bigint;
@@ -15,10 +16,14 @@ export class CrawlerController {
     private lastCalculated: number;
     private queuedBlocks: number;
     private processedBlocks: number;
+    private lastProcessedBlocks: number;
+    private errorBlocks: number;
     private lastBlockHeight: number;
     private finishedWorkers: number;
     private workers: number[] = [];
     private blocksBatchSize = 25000;
+    private meterInterval: NodeJS.Timeout;
+    private crawlerTimer: NodeJS.Timeout;
 
     constructor(
         @service( CrawlerService ) private crawlerService: CrawlerService,
@@ -27,17 +32,21 @@ export class CrawlerController {
         this.redisService.sub.client.on( 'message', ( channel: string, message: string ) => {
 
             if ( channel === 'register' ) {
-                logger.info( 'Registered worker %s', message)
+                logger.debug( 'Registered worker %s', message)
                 this.workers.push( Number( message ) );
             }
             if ( channel === 'done' ) {
                 this.processedBlocks++;
             }
+            if ( channel === 'error' ) {
+                this.errorBlocks++;
+            }
             if ( channel === 'control' && message === 'finished' ) {
                 this.finishedWorkers++;
-                logger.info( 'Worker finished: %d', this.finishedWorkers );
+                logger.debug( 'Worker finished: %d', this.finishedWorkers );
 
                 if ( this.finishedWorkers === this.workers.length ) {
+                    clearInterval( this.meterInterval );
                     logger.info( 'Processed/Queued blocks: %d / %d', this.processedBlocks, this.queuedBlocks )
                     if ( this.queuedBlocks === this.processedBlocks ) {
                         this.startCalculating();
@@ -49,24 +58,26 @@ export class CrawlerController {
         } );
         this.redisService.sub.client.subscribe( 'control' );
         this.redisService.sub.client.subscribe( 'done' );
+        this.redisService.sub.client.subscribe( 'error' );
         this.redisService.sub.client.subscribe( 'register' );
     }
 
     public async start(): Promise<void> {
         await this.redisService.client.setAsync( 'calculating', 0 );
-        setTimeout( async () => {
+        this.crawlerTimer = setTimeout( async () => {
             await this.crawl();
         }, 5000 );
     }
 
     public async stop(): Promise<void> {
-        logger.info( 'Crawler is stopping.' );
+        logger.debug( 'Crawler is stopping.' );
     }
 
     private reset(): void {
         this.lastCalculated = 0;
         this.queuedBlocks = 0;
         this.processedBlocks = 0;
+        this.errorBlocks = 0;
         this.lastBlockHeight = 0;
         this.finishedWorkers = 0;
     }
@@ -77,6 +88,7 @@ export class CrawlerController {
             return;
         }
         logger.info( 'Start crawling cycle.' );
+        clearInterval( this.meterInterval );
 
         this.reset();
 
@@ -87,8 +99,6 @@ export class CrawlerController {
                 this.scheduleCrawling();
                 throw new Error();
             } );
-        //
-        // this.lastBlockHeight = 102200;
 
         this.queuedBlocks = 0;
         this.processedBlocks = 0;
@@ -96,12 +106,20 @@ export class CrawlerController {
             Number( await this.redisService.client.getAsync( 'lastcalc' ) ):
             -1;
 
-        logger.info( 'Last calculated %d', this.lastCalculated );
+        logger.debug( 'Last calculated %d', this.lastCalculated );
 
         await this.collectBlocksToCrawl();
 
         if ( this.queuedBlocks ) {
             this.redisService.pub.client.publish( 'control', 'start' );
+            this.meterInterval = setInterval( () => {
+                logger.debug(
+                    'Crawled %d of %d blocks with %d errors',
+                    this.processedBlocks,
+                    this.queuedBlocks,
+                    this.errorBlocks
+                );
+            }, 5000 );
         } else {
             await this.scheduleCrawling();
         }
@@ -110,7 +128,7 @@ export class CrawlerController {
     private startCalculating(): void {
         this.crawlerService.calcBlocksAndEras().then(
             () => {
-                logger.info( 'Blocks and eras are calculated. Scheduled re-crawling.' );
+                logger.debug( 'Blocks and eras are calculated. Scheduled re-crawling.' );
             }
         ).catch(
             ( error ) => {
@@ -140,12 +158,16 @@ export class CrawlerController {
                 }
             }
         }
+
+        logger.info( 'Scheduled %d blocks to crawl', this.queuedBlocks );
     }
 
     private async scheduleCrawling(): Promise<void> {
         this.redisService.pub.client.publish( 'control', 'stop' );
-        logger.info( 'Re-crawling in 10 seconds' );
-        setTimeout( () => {
+        logger.debug( 'Re-crawling in 10 seconds' );
+        clearInterval( this.meterInterval );
+        clearTimeout( this.crawlerTimer );
+        this.crawlerTimer = setTimeout( () => {
             this.crawl();
         }, 10000 );
     }
