@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const logger = winston.createLogger( {
-    level: 'info',
+    level: process.env.DEBUG_LEVEL ?? 'info',
     format: combine(
         timestamp(),
         splat(),
@@ -28,11 +28,11 @@ export const logger = winston.createLogger( {
 //     } ) );
 // }
 
-if ( process.env.NODE_ENV !== 'production' ) {
+//if ( process.env.NODE_ENV !== 'production' ) {
     logger.add( new winston.transports.Console( {
         format: combine(
             winston.format.colorize(),
             winston.format.simple(),
         )
     } ) );
-}
+//}

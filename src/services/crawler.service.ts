@@ -32,10 +32,9 @@ export interface CasperServiceSet {
 export class CrawlerService {
 	private _casperServices: CasperServiceSet[] = [];
 	private _activeRpcNodes: string[] = [];
-	private _minRpcNodes = 15;
+	private _minRpcNodes = 10;
 	private _maxRpcBanLevel = 10;
-	private _rateLimit = 200; // Queries per RPC node in ms.
-	private _calcBatchSize = 25000;
+	private _calcBatchSize = 50000;
 
 	constructor(
 		@repository( EraRepository ) public eraRepository: EraRepository,
@@ -49,7 +48,7 @@ export class CrawlerService {
 
 	public async getLastBlockHeight(): Promise<number> {
 		await this._resetNetworks();
-		logger.info( 'Trying to init %d nodes', this._activeRpcNodes.length );
+		logger.debug( 'Trying to init %d nodes', this._activeRpcNodes.length );
 
 		const asyncQueue = [];
 		for ( const ip of this._activeRpcNodes ) {
@@ -57,6 +56,7 @@ export class CrawlerService {
 				await this._testRpcNode( ip );
 			} );
 		}
+
 		await async.parallelLimit( asyncQueue, 100 );
 
 		const maxLastBlock = Math.max.apply( Math, this._casperServices.map( ( node: CasperServiceSet ) => {
@@ -65,12 +65,12 @@ export class CrawlerService {
 
 		// All nodes with the same lastBlock
 		this._casperServices = this._casperServices.filter(
-			node => node.lastBlock === maxLastBlock,
+			node => node.lastBlock === maxLastBlock
 		);
 
 		if ( this._casperServices.length < this._minRpcNodes ) {
-			logger.warn( 'Not enough active RPC nodes with the same last block. Re-trying in 3 seconds.' );
-			await this._sleep( 3000 );
+			logger.debug ( 'Not enough active RPC nodes with the same last block. Re-trying in 5 seconds.' );
+			await this._sleep( 5000 );
 			return await this.getLastBlockHeight();
 		}
 
@@ -88,6 +88,7 @@ export class CrawlerService {
 	}
 
 	public async createBlock( blockHeight: number ): Promise<void> {
+		//await this._sleep( 1000 );
 		if ( await this.blocksRepository.exists( blockHeight ) ) {
 			await this.blocksRepository.deleteById( blockHeight );
 		}
@@ -153,7 +154,7 @@ export class CrawlerService {
 		    } )
 		        .catch( error => {
 					this._banService( service );
-		            logger.error( 'Error getting chain_get_era_info_by_switch_block')
+		            logger.debug( 'Error getting chain_get_era_info_by_switch_block')
 		            throw new Error( error );
 		        } );
 		    const allocations = result.era_summary.stored_value.EraInfo.seigniorage_allocations;
@@ -263,10 +264,7 @@ export class CrawlerService {
 				await this._updateBlockTransfers( block );
 			} );
 		}
-		const now = moment().valueOf();
 		await async.parallelLimit( asyncQueue, 1000 );
-		logger.info( moment().valueOf() - now );
-
 		await this.redisService.client.setAsync( 'lastcalc', blocks[blocks.length - 1].blockHeight );
 
 		if ( totalBlockSize > this._calcBatchSize ) {
@@ -274,6 +272,24 @@ export class CrawlerService {
 		} else {
 			await this.redisService.client.setAsync( 'calculating', 0 );
 			logger.info( 'Calculation finished.' );
+		}
+	}
+
+	public async setCasperServices(): Promise<void> {
+		this._casperServices = [];
+		for ( const ip of networks.rpc_nodes ) {
+			const lastQueried: string = await this.redisService.client.getAsync( 'rpc' + ip );
+			const banned: string = await this.redisService.client.getAsync( 'ban' + ip );
+			if ( lastQueried ) {
+				this._casperServices.push( {
+					node: new CasperServiceByJsonRPC(
+						'http://' + ip + ':7777/rpc',
+					),
+					ip: ip,
+					lastQueried: parseInt( lastQueried ),
+					banLevel: parseInt( banned ?? '0' ),
+				} );
+			}
 		}
 	}
 
@@ -348,13 +364,13 @@ export class CrawlerService {
 		try {
 			blockInfo = await this._getLastBlockWithTimeout( casperServiceSet.node );
 		} catch ( error ) {
-			logger.warn( 'Failed to init Casper Node %s', ip );
+			logger.debug( 'Failed to init Casper Node %s', ip );
 			return;
 		}
 		try {
 			casperServiceSet.lastBlock = blockInfo.block.header.height;
 		} catch ( error ) {
-			logger.warn( 'Node didn\'t return lastBlock %s', ip );
+			logger.debug( 'Node didn\'t return lastBlock %s', ip );
 			return;
 		}
 		this._casperServices.push( casperServiceSet )
@@ -371,19 +387,13 @@ export class CrawlerService {
 	private async _addService( service: CasperServiceSet ): Promise<void> {
 		await this.redisService.client.setAsync( 'rpc' + service.ip, moment().valueOf().toString() );
 		await this.redisService.client.setAsync( 'ban' + service.ip, '0' );
-		logger.info( 'Added %s to the active list.', service.ip );
 	}
 
 	private async _banService( service: CasperServiceSet ): Promise<void> {
 		let banLevel = Number( await this.redisService.client.getAsync( 'ban' + service.ip ) );
 		banLevel ++;
-		// if ( banLevel > this._maxRpcBanLevel ) {
-		// 	await this._deleteService( service.ip );
-		// 	logger.warn( 'Removed %s from the list due to %d ban level', service.ip, banLevel );
-		// 	return;
-		// }
 		await this.redisService.client.setAsync( 'ban' + service.ip, banLevel.toString() );
-		logger.warn( 'Banned %s to %d level', service.ip, banLevel );
+		logger.debug( 'Banned %s to %d level', service.ip, banLevel );
 	}
 
 	private async _deleteService( ip: String ): Promise<void> {
@@ -391,33 +401,17 @@ export class CrawlerService {
 		await this.redisService.client.deleteAsync( 'ban' + ip );
 	}
 
-	public async setCasperServices(): Promise<void> {
-		this._casperServices = [];
-		for ( const ip of networks.rpc_nodes ) {
-			const lastQueried: string = await this.redisService.client.getAsync( 'rpc' + ip );
-			const banned: string = await this.redisService.client.getAsync( 'ban' + ip );
-			if ( lastQueried ) {
-				this._casperServices.push( {
-					node: new CasperServiceByJsonRPC(
-						'http://' + ip + ':7777/rpc',
-					),
-					ip: ip,
-					lastQueried: parseInt( lastQueried ),
-					banLevel: parseInt( banned ?? '0' ),
-				} );
-			}
-		}
-		logger.info( 'SET %d nodes', this._casperServices.length )
-	}
-
 	private async _getCasperService(): Promise<CasperServiceSet> {
+		if ( ! this._casperServices.length ) {
+			throw new Error( 'No RPC services available.' );
+		}
 		const rpcs: CasperServiceSet[] = [];
 		for ( const service of this._casperServices ) {
 			const lastQueried: string = await this.redisService.client.getAsync( 'rpc' + service.ip );
 			const banned: string = await this.redisService.client.getAsync( 'ban' + service.ip );
-			service.lastQueried = parseInt( lastQueried ?? '0' );
-			service.banLevel = parseInt( banned ?? '0' );
-			if ( ! service.banLevel ) {
+			service.lastQueried = parseInt( lastQueried  );
+			service.banLevel = parseInt( banned );
+			if ( service.banLevel < this._maxRpcBanLevel ) {
 				rpcs.push( service );
 			}
 		}
@@ -425,13 +419,7 @@ export class CrawlerService {
 		rpcs.sort( ( a: CasperServiceSet, b: CasperServiceSet ) => {
 			return ( ( a.lastQueried > b.lastQueried ) ? 1 : ( ( a.lastQueried < b.lastQueried ) ? -1 : 0 ) );
 		} );
-
 		await this.redisService.client.setAsync( 'rpc' + rpcs[0].ip, moment().valueOf().toString() );
-
-		if( rpcs[0].banLevel ) {
-			await this._sleep( rpcs[0].banLevel * 100 );
-			await this.redisService.client.setAsync( 'rpc' + rpcs[0].ip, moment().valueOf().toString() );
-		}
 		return rpcs[0];
 	}
 
@@ -622,11 +610,10 @@ export class CrawlerService {
 										hex: deployResult.deploy.header.account,
 									} );
 								} catch ( error ) {
-									logger.error( error );
+									logger.debug( error );
 								}
 							}
 
-							logger.info( 'creating transfer' );
 							await this.transferRepository.create( {
 								timestamp: deployResult.deploy.header.timestamp,
 								blockHeight: blockHeight,
@@ -731,7 +718,7 @@ export class CrawlerService {
 		return amount / BigInt( 1000000000 );
 	}
 
-	private _sleep( ms: number ): Promise<void> {
-		return new Promise( resolve => setTimeout( resolve, ms ) );
+	private _sleep( ms: number ): Promise<any> {
+		return new Promise( ( resolve ) => setTimeout( resolve, ms ) );
 	}
 }
