@@ -107,6 +107,8 @@ export class CrawlerController {
                 throw new Error();
             } );
 
+        // this.lastBlockHeight = 100000;
+
         this.queuedBlocks = 0;
         this.processedBlocks = 0;
         this.lastCalculated = await this.redisService.client.getAsync( 'lastcalc' )  ?
@@ -133,13 +135,13 @@ export class CrawlerController {
                 this.queuedBlocks,
                 this.errorBlocks
             );
-            if ( this.processedBlocks === this.lastProcessedBlocks ) {
-                logger.debug( 'Crawling stacked, stopping workers' );
-                this.redisService.pub.client.publish( 'control', 'stop' );
-                clearInterval( this.meterInterval );
-            } else {
-                this.lastProcessedBlocks = this.processedBlocks;
-            }
+            // if ( this.processedBlocks === this.lastProcessedBlocks ) {
+            //     logger.debug( 'Crawling stacked, stopping workers' );
+            //     this.redisService.pub.client.publish( 'control', 'stop' );
+            //     clearInterval( this.meterInterval );
+            // } else {
+            //     this.lastProcessedBlocks = this.processedBlocks;
+            // }
         }, 60000 );
     }
 
