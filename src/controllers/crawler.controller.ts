@@ -21,7 +21,7 @@ export class CrawlerController {
     private lastBlockHeight: number;
     private finishedWorkers: number;
     private workers: number[] = [];
-    private blocksBatchSize = 25000;
+    private blocksBatchSize = 50000;
     private meterInterval: NodeJS.Timeout;
     private crawlerTimer: NodeJS.Timeout;
 
