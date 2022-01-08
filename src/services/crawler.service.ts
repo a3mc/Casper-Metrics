@@ -33,7 +33,7 @@ export class CrawlerService {
 	private _casperServices: CasperServiceSet[] = [];
 	private _activeRpcNodes: string[] = [];
 	private _minRpcNodes = 10;
-	private _maxRpcBanLevel = 10;
+	private _maxRpcBanLevel = 100;
 	private _calcBatchSize = 50000;
 
 	constructor(

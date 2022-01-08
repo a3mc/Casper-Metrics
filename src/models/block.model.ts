@@ -8,7 +8,14 @@ export class Block extends Entity {
         precision: 10,
         scale: 0,
         id: 1,
-        mysql: { columnName: 'id', dataType: 'int', dataLength: null, dataPrecision: 10, dataScale: 0, nullable: 'N' },
+        mysql: {
+            columnName: 'id',
+            dataType: 'int',
+            dataLength: null,
+            dataPrecision: 10,
+            dataScale: 0,
+            nullable: 'N'
+        },
     } )
     blockHeight: number;
 
@@ -17,7 +24,6 @@ export class Block extends Entity {
         required: true,
         precision: 10,
         scale: 0,
-        id: 1,
         mysql: {
             columnName: 'era_id',
             dataType: 'int',
