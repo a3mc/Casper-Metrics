@@ -88,8 +88,8 @@ export class CrawlerService {
 	}
 
 	public async createBlock( blockHeight: number ): Promise<void> {
-		if ( await this.blocksRepository.exists( blockHeight ) ) {
-			await this.blocksRepository.deleteById( blockHeight );
+		if ( await this.redisService.client.getAsync( 'b' + String( blockHeight ) ) ) {
+			throw new Error( 'Block ' + blockHeight + ' already crawled' );
 		}
 		await this.transferRepository.deleteAll( { blockHeight: blockHeight } );
 
@@ -115,12 +115,16 @@ export class CrawlerService {
 
 		if ( blockInfo.block.body.deploy_hashes?.length ) {
 		    deploys = blockInfo.block.body.deploy_hashes.length;
+			logger.debug( 'Started to process %d deploys for %d block', deploys, blockHeight );
 		    staked = await this._processDeploys( blockInfo.block.body.deploy_hashes );
+			logger.debug( 'Finished processing deploys for %d block', blockHeight)
 		}
 
 		if ( blockInfo.block.body.transfer_hashes?.length ) {
 		    transfers = blockInfo.block.body.transfer_hashes.length;
+			logger.debug( 'Started to process %d transfers for %d block', transfers, blockHeight );
 		    await this._processTransfers( blockInfo.block.body.transfer_hashes, blockHeight, eraId );
+			logger.debug( 'Finished processing transfers for %d block', blockHeight)
 		}
 
 		let isSwitchBlock = false;
@@ -172,6 +176,9 @@ export class CrawlerService {
 		    } );
 		}
 
+		if ( await this.blocksRepository.exists( blockHeight ) ) {
+			await this.blocksRepository.deleteById( blockHeight );
+		}
 		await this.blocksRepository.create( {
 			blockHeight: blockHeight,
 			eraId: eraId,
