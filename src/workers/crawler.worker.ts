@@ -13,7 +13,7 @@ import { MetricsDbDataSource } from '../datasources';
 import * as async from 'async';
 
 export class CrawlerWorker {
-    private _parallelLimit = 200;
+    private _parallelLimit = 300;
     private _asyncQueue: any = [];
     private _isCrawling = false;
 

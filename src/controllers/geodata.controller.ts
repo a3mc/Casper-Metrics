@@ -74,7 +74,7 @@ export class GeodataController {
 		return this.peersRepository.find( {
 			where: {
 				mission: 'VALIDATOR',
-				added: { gt: moment().add( -1, 'hours' ).format() }
+				added: { gt: moment().add( -4, 'hours' ).format() }
 			},
 			fields: ['loc']
 		} );

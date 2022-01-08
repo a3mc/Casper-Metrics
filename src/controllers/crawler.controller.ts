@@ -128,7 +128,7 @@ export class CrawlerController {
     private _setCrawlingMeter(): void {
         this.meterInterval = setInterval( () => {
             logger.debug(
-                'Crawled %d of %d blocks with %d errors in 1 minute',
+                'Crawled %d of %d blocks with %d errors',
                 this.processedBlocks,
                 this.queuedBlocks,
                 this.errorBlocks
