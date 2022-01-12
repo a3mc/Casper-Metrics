@@ -1,25 +1,7 @@
-import {
-	Count,
-	CountSchema,
-	Filter,
-	FilterExcludingWhere,
-	repository,
-	Where,
-} from '@loopback/repository';
-import {
-	post,
-	param,
-	get,
-	getModelSchemaRef,
-	patch,
-	put,
-	del,
-	requestBody,
-	response,
-} from '@loopback/rest';
+import { Filter, FilterExcludingWhere, repository } from '@loopback/repository';
+import { param, get, getModelSchemaRef, response, oas, OperationVisibility } from '@loopback/rest';
 import { Peers } from '../models';
 import { PeersRepository } from '../repositories';
-import { Validator } from '@loopback/rest/dist/coercion/validator';
 import moment from 'moment';
 
 export class GeodataController {
@@ -29,17 +11,7 @@ export class GeodataController {
 	) {
 	}
 
-	@get( '/geodata/count' )
-	@response( 200, {
-		description: 'Peers model count',
-		content: { 'application/json': { schema: CountSchema } },
-	} )
-	async count(
-		@param.where( Peers ) where?: Where<Peers>,
-	): Promise<Count> {
-		return this.peersRepository.count( where );
-	}
-
+	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@get( '/geodata' )
 	@response( 200, {
 		description: 'Array of Peers model instances',
@@ -47,7 +19,7 @@ export class GeodataController {
 			'application/json': {
 				schema: {
 					type: 'array',
-					items: getModelSchemaRef( Peers, { includeRelations: true } ),
+					items: getModelSchemaRef( Peers, { includeRelations: false } ),
 				},
 			},
 		},
@@ -65,7 +37,7 @@ export class GeodataController {
 			'application/json': {
 				schema: {
 					type: 'array',
-					items: getModelSchemaRef( Peers, { includeRelations: true } ),
+					items: getModelSchemaRef( Peers, { includeRelations: false } ),
 				},
 			},
 		},
@@ -74,9 +46,9 @@ export class GeodataController {
 		return this.peersRepository.find( {
 			where: {
 				mission: 'VALIDATOR',
-				added: { gt: moment().add( -4, 'hours' ).format() }
+				added: { gt: moment().add( -4, 'hours' ).format() },
 			},
-			fields: ['loc']
+			fields: ['loc'],
 		} );
 	}
 
@@ -85,7 +57,7 @@ export class GeodataController {
 		description: 'Peers model instance',
 		content: {
 			'application/json': {
-				schema: getModelSchemaRef( Peers, { includeRelations: true } ),
+				schema: getModelSchemaRef( Peers, { includeRelations: false } ),
 			},
 		},
 	} )
