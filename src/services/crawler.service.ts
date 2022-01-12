@@ -115,16 +115,12 @@ export class CrawlerService {
 
 		if ( blockInfo.block.body.deploy_hashes?.length ) {
 		    deploys = blockInfo.block.body.deploy_hashes.length;
-			logger.debug( 'Started to process %d deploys for %d block', deploys, blockHeight );
 		    staked = await this._processDeploys( blockInfo.block.body.deploy_hashes );
-			logger.debug( 'Finished processing deploys for %d block', blockHeight)
 		}
 
 		if ( blockInfo.block.body.transfer_hashes?.length ) {
 		    transfers = blockInfo.block.body.transfer_hashes.length;
-			logger.debug( 'Started to process %d transfers for %d block', transfers, blockHeight );
 		    await this._processTransfers( blockInfo.block.body.transfer_hashes, blockHeight, eraId );
-			logger.debug( 'Finished processing transfers for %d block', blockHeight)
 		}
 
 		let isSwitchBlock = false;
@@ -230,7 +226,7 @@ export class CrawlerService {
 		let blockCount = 0;
 
 		for ( const block of blocks ) {
-			// await this._updateBlockTransfers( block );
+			await this._updateBlockTransfers( block );
 			let prevBlock: Block | null = null;
 
 			if ( block.blockHeight > 0 ) {
@@ -265,16 +261,14 @@ export class CrawlerService {
 			if ( !era || era.id !== block.eraId ) {
 				era = await this.eraRepository.findById( block.eraId );
 			}
+
+			await this.blocksRepository.updateById( block.blockHeight, {
+				validatorsWeights: era.validatorsWeights
+			} )
+
 			blockCount++;
 		}
 
-		const asyncQueue = [];
-		for ( const block of blocks ) {
-			asyncQueue.push( async () => {
-				await this._updateBlockTransfers( block );
-			} );
-		}
-		await async.parallelLimit( asyncQueue, 1000 );
 		await this.redisService.client.setAsync( 'lastcalc', blocks[blocks.length - 1].blockHeight );
 
 		if ( totalBlockSize > this._calcBatchSize ) {
