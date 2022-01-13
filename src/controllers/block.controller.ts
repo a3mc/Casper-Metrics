@@ -37,17 +37,21 @@ export class BlockController {
             }
         }
         const block: Partial<Block> | null = await this.blocksRepository.findOne( filter );
+
         if ( block ) {
             const circulatingSupply: bigint = await this._getLastCirculatingSupply( block );
             block.circulatingSupply = Number( circulatingSupply );
+
+            const era: Era | null = await this.eraRepository.findOne( {
+                where: { id: block.eraId }
+            } );
+            if ( era ) {
+                block.validatorsWeights = era.validatorsWeights;
+                block.circulatingSupply = era.circulatingSupply;
+            }
         } else {
             throw new NotFound();
         }
-
-        // Remove temporarily unused properties.
-        delete block.stakedDiffSinceGenesis;
-        delete block.stakedDiffSinceGenesisMotes;
-        delete block.stakedDiffThisBlock;
 
         return block;
     }
@@ -113,11 +117,8 @@ export class BlockController {
         let circulatingSupply = BigInt( 0 );
         if ( block && block.eraId ) {
             const blockEra = await this.eraRepository.findOne( {
-                where: {
-                    id: block.eraId
-                }
-            } ).catch();
-
+                where: { id: block.eraId }
+            } );
             if ( blockEra && blockEra.circulatingSupply ) {
                 circulatingSupply = blockEra.circulatingSupply;
             }

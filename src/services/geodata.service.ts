@@ -23,7 +23,7 @@ export class GeodataService {
 		} );
 
 		if ( !lastRecord.length ) {
-			logger.debug( 'Need to update geodata peers info.' );
+			logger.debug( 'Need to check geodata peers info for an update.' );
 			await this.updateGeoData();
 		}
 	}

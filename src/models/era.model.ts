@@ -271,21 +271,6 @@ export class Era extends Entity {
     } )
     stakedDiffThisEra: bigint;
 
-    @property( {
-        type: 'Number',
-        required: true,
-        mysql: {
-            columnName: 'staked_diff_since_genesis',
-            dataType: 'bigint',
-            dataLength: null,
-            dataPrecision: null,
-            dataScale: null,
-            nullable: 'N',
-            default: 0,
-        },
-    } )
-    stakedDiffSinceGenesis: bigint;
-
     // Define well-known properties here
 
     // Indexer property to allow additional data

@@ -266,52 +266,6 @@ export class Block extends Entity {
     undelegatedThisBlock: bigint;
 
     @property( {
-        type: 'Number',
-        required: false,
-        mysql: {
-            columnName: 'staked_diff_this_block',
-            dataType: 'bigint',
-            dataLength: null,
-            dataPrecision: null,
-            dataScale: null,
-            nullable: 'N',
-            default: 0,
-        },
-    } )
-    stakedDiffThisBlock: bigint;
-
-    @property( {
-        type: 'Number',
-        required: false,
-        mysql: {
-            columnName: 'staked_diff_since_genesis',
-            dataType: 'bigint',
-            dataLength: null,
-            dataPrecision: null,
-            dataScale: null,
-            nullable: 'N',
-            default: 0,
-        },
-    } )
-    stakedDiffSinceGenesis: bigint;
-
-    @property( {
-        type: 'string',
-        required: false,
-        length: 64,
-        mysql: {
-            columnName: 'exact_staked_diff_since_genesis',
-            dataType: 'varchar',
-            dataLength: 64,
-            dataPrecision: null,
-            dataScale: null,
-            nullable: 'N',
-            default: '0',
-        },
-    } )
-    stakedDiffSinceGenesisMotes: string;
-
-    @property( {
         type: 'date',
         required: true,
         mysql: {
