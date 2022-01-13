@@ -183,7 +183,6 @@ export class CrawlerService {
 			totalSupply: this._denominate( totalSupply ),
 			stakedThisBlock: this._denominate( staked.delegated ),
 			undelegatedThisBlock: this._denominate( staked.undelegated ),
-			stakedDiffThisBlock: this._denominate( staked.amount ),
 			nextEraValidatorsWeights: nextEraValidatorsWeights,
 			validatorsRewards: this._denominate( validatorsSum ),
 			delegatorsRewards: this._denominate( delegatorsSum ),
@@ -193,7 +192,6 @@ export class CrawlerService {
 			switch: isSwitchBlock,
 			circulatingSupply: BigInt( 0 ),
 			validatorsWeights: BigInt( 0 ),
-			stakedDiffSinceGenesis: BigInt( 0 ),
 			deploysCount: deploys,
 			transfersCount: transfers,
 		} );
@@ -223,9 +221,11 @@ export class CrawlerService {
 		}
 
 		let blockCount = 0;
+		let queue = [];
 
 		for ( const block of blocks ) {
-			await this._updateBlockTransfers( block );
+			queue.push( async() => { await this._updateBlockTransfers( block ); }  );
+
 			let prevBlock: Block | null = null;
 
 			if ( block.blockHeight > 0 ) {
@@ -258,6 +258,8 @@ export class CrawlerService {
 
 			blockCount++;
 		}
+
+		await async.parallelLimit( queue, 200 );
 
 		await this.redisService.client.setAsync( 'lastcalc', blocks[blocks.length - 1].blockHeight );
 
@@ -433,7 +435,6 @@ export class CrawlerService {
 		if ( !await this.eraRepository.exists( block.eraId ) ) {
 			await this.eraRepository.create( {
 				id: block.eraId,
-				stakedDiffSinceGenesis: block.stakedDiffSinceGenesis,
 				circulatingSupply: BigInt( block.circulatingSupply ),
 				startBlock: block.blockHeight,
 				start: block.timestamp,
@@ -488,7 +489,6 @@ export class CrawlerService {
 			{
 				totalSupply: switchBlock.totalSupply,
 				circulatingSupply: BigInt( switchBlock.circulatingSupply ),
-				stakedDiffSinceGenesis: switchBlock.stakedDiffSinceGenesis,
 				endBlock: switchBlock.blockHeight,
 				end: moment( switchBlock.timestamp ).add( -1, 'ms' ).format(),
 				stakedDiffThisEra: stakedInfo.amount,
@@ -513,7 +513,6 @@ export class CrawlerService {
 	private async _createGenesisEra( block: Block ): Promise<void> {
 		await this.eraRepository.create( {
 			id: 0,
-			stakedDiffSinceGenesis: BigInt( 0 ),
 			circulatingSupply: BigInt( 0 ),
 			stakedDiffThisEra: BigInt( 0 ),
 			undelegatedThisEra: BigInt( 0 ),

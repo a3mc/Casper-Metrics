@@ -11,25 +11,6 @@ export class GeodataController {
 	) {
 	}
 
-	@oas.visibility( OperationVisibility.UNDOCUMENTED )
-	@get( '/geodata' )
-	@response( 200, {
-		description: 'Array of Peers model instances',
-		content: {
-			'application/json': {
-				schema: {
-					type: 'array',
-					items: getModelSchemaRef( Peers, { includeRelations: false } ),
-				},
-			},
-		},
-	} )
-	async find(
-		@param.filter( Peers ) filter?: Filter<Peers>,
-	): Promise<Peers[]> {
-		return this.peersRepository.find( filter );
-	}
-
 	@get( '/geodata/validators' )
 	@response( 200, {
 		description: 'Active validators',
@@ -43,13 +24,22 @@ export class GeodataController {
 		},
 	} )
 	async getValidators(): Promise<any[]> {
-		return this.peersRepository.find( {
-			where: {
-				mission: 'VALIDATOR',
-				added: { gt: moment().add( -4, 'hours' ).format() },
-			},
-			fields: ['loc'],
+		const lastVersionResult = await this.peersRepository.find( {
+			limit: 1,
+			order: ['version DESC'],
+			fields: ['version'],
 		} );
+
+		if ( lastVersionResult ) {
+			return this.peersRepository.find( {
+				where: {
+					mission: 'VALIDATOR',
+					version: lastVersionResult,
+				},
+				fields: ['loc'],
+			} );
+		}
+		return [];
 	}
 
 	@get( '/geodata/{id}' )
