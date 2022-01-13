@@ -1,6 +1,7 @@
 export const geodata =
 {
-  "result": [
+  "version": 0,
+  "result":
     [
       {
         "ip": "101.36.120.117",
@@ -28566,5 +28567,4 @@ export const geodata =
         "peer_ip": "99.81.225.72"
       }
     ]
-  ]
 }
