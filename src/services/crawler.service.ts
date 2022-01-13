@@ -222,7 +222,6 @@ export class CrawlerService {
 			logger.info( 'Calculation started. Processing %d blocks', totalBlockSize );
 		}
 
-		let era;
 		let blockCount = 0;
 
 		for ( const block of blocks ) {
@@ -240,7 +239,6 @@ export class CrawlerService {
 					await this.eraRepository.deleteById( 0 );
 				}
 				await this._createGenesisEra( block );
-				era = await this.eraRepository.findById( block.eraId );
 			}
 
 			if ( prevBlock && prevBlock.switch ) {
@@ -257,14 +255,6 @@ export class CrawlerService {
 				}
 				await this._updateCompletedEra( prevBlock, eraBlocks );
 			}
-
-			if ( !era || era.id !== block.eraId ) {
-				era = await this.eraRepository.findById( block.eraId );
-			}
-
-			await this.blocksRepository.updateById( block.blockHeight, {
-				validatorsWeights: era.validatorsWeights
-			} )
 
 			blockCount++;
 		}
