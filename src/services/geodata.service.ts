@@ -19,7 +19,7 @@ export class GeodataService {
 		const lastRecord = await this.peersRepository.find( {
 			where: {
 				added: {
-					gt: moment().add( 0, 'hours' ).format()
+					gt: moment().add( 4, 'hours' ).format()
 				}
 			}
 		} );
