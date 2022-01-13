@@ -16,6 +16,12 @@ export class Peers extends Entity {
 	ip: string;
 
 	@property( {
+		type: 'string',
+		required: false,
+	} )
+	performance: string;
+
+	@property( {
 		type: 'number',
 		required: true,
 	} )
