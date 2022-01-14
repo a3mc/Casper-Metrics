@@ -224,7 +224,7 @@ export class CrawlerService {
 		let queue = [];
 
 		for ( const block of blocks ) {
-			queue.push( async() => { await this._updateBlockTransfers( block ); }  );
+			//queue.push( async() => { await this._updateBlockTransfers( block ); }  );
 
 			let prevBlock: Block | null = null;
 
@@ -261,7 +261,7 @@ export class CrawlerService {
 
 		if ( queue.length ) {
 			logger.debug( 'Transfers async queue of %d', queue.length )
-			await async.parallelLimit( queue, 100 );
+			//await async.parallelLimit( queue, 100 );
 		}
 
 		await this.redisService.client.setAsync( 'lastcalc', blocks[blocks.length - 1].blockHeight );
@@ -477,10 +477,8 @@ export class CrawlerService {
 		let delegatorsRewards = BigInt( 0 );
 		let validatorsRewards = BigInt( 0 );
 		for ( const eraBlock of eraBlocks ) {
-			stakedInfo.amount += BigInt( eraBlock.stakedDiffThisBlock );
 			stakedInfo.delegated += BigInt( eraBlock.stakedThisBlock );
 			stakedInfo.undelegated += BigInt( eraBlock.undelegatedThisBlock );
-
 			deploys += eraBlock.deploysCount;
 			transfers += eraBlock.transfersCount;
 			validatorsRewards += BigInt( eraBlock.validatorsRewards );
@@ -489,7 +487,6 @@ export class CrawlerService {
 			validatorsCount += eraBlock.validatorsCount;
 			delegatorsCount += eraBlock.delegatorsCount;
 		}
-
 		await this.eraRepository.updateById(
 			switchBlock.eraId,
 			{
@@ -517,6 +514,7 @@ export class CrawlerService {
 	}
 
 	private async _createGenesisEra( block: Block ): Promise<void> {
+		logger.debug( 'Creating genesis era' );
 		await this.eraRepository.create( {
 			id: 0,
 			circulatingSupply: BigInt( 0 ),
@@ -532,10 +530,7 @@ export class CrawlerService {
 			delegatorsCount: 0,
 			rewards: BigInt( 0 ),
 			totalSupply: block.totalSupply,
-		} ).catch( e => {
-			logger.error( e );
-			throw new Error( e );
-		} );;
+		} );
 	}
 
 	private async _getTotalSupply( stateRootHash: string ): Promise<bigint> {
