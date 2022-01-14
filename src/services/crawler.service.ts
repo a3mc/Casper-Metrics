@@ -210,21 +210,21 @@ export class CrawlerService {
 		const totalBlockSize = blocks.length;
 
 		if ( totalBlockSize > this._calcBatchSize ) {
-			logger.info(
+			logger.debug(
 				'Calculation started. Taking %d of %d blocks total',
 				this._calcBatchSize,
 				totalBlockSize
 			);
 			blocks = blocks.slice( 0, this._calcBatchSize );
 		} else {
-			logger.info( 'Calculation started. Processing %d blocks', totalBlockSize );
+			logger.debug( 'Calculation started. Processing %d blocks', totalBlockSize );
 		}
 
 		let blockCount = 0;
 		let queue = [];
 
 		for ( const block of blocks ) {
-			//queue.push( async() => { await this._updateBlockTransfers( block ); }  );
+			queue.push( async() => { await this._updateBlockTransfers( block ); }  );
 
 			let prevBlock: Block | null = null;
 
@@ -261,7 +261,7 @@ export class CrawlerService {
 
 		if ( queue.length ) {
 			logger.debug( 'Transfers async queue of %d', queue.length )
-			//await async.parallelLimit( queue, 100 );
+			await async.parallelLimit( queue, 100 );
 		}
 
 		await this.redisService.client.setAsync( 'lastcalc', blocks[blocks.length - 1].blockHeight );
@@ -270,7 +270,7 @@ export class CrawlerService {
 			await this.calcBlocksAndEras();
 		} else {
 			await this.redisService.client.setAsync( 'calculating', 0 );
-			logger.info( 'Calculation finished.' );
+			logger.debug('Calculation finished.' );
 		}
 	}
 
