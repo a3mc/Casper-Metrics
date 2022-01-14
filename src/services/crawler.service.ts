@@ -259,7 +259,10 @@ export class CrawlerService {
 			blockCount++;
 		}
 
-		await async.parallelLimit( queue, 200 );
+		if ( queue.length ) {
+			logger.debug( 'Transfers async queue of %d', queue.length )
+			await async.parallelLimit( queue, 100 );
+		}
 
 		await this.redisService.client.setAsync( 'lastcalc', blocks[blocks.length - 1].blockHeight );
 
@@ -450,6 +453,9 @@ export class CrawlerService {
 				rewards: BigInt( 0 ),
 				deploysCount: 0,
 				transfersCount: 0,
+			} ).catch( e => {
+				logger.error( e );
+				throw new Error( e );
 			} );
 		}
 		await this.circulatingService.updateEraCirculatingSupply(
@@ -526,7 +532,10 @@ export class CrawlerService {
 			delegatorsCount: 0,
 			rewards: BigInt( 0 ),
 			totalSupply: block.totalSupply,
-		} );
+		} ).catch( e => {
+			logger.error( e );
+			throw new Error( e );
+		} );;
 	}
 
 	private async _getTotalSupply( stateRootHash: string ): Promise<bigint> {
