@@ -1,5 +1,5 @@
 import { logger } from '../logger';
-import { CrawlerService, GeodataService, RedisService } from '../services';
+import { CrawlerService, GeodataService, PriceService, RedisService } from '../services';
 import { lifeCycleObserver, service } from '@loopback/core';
 import { finished } from "stream";
 import dotenv from 'dotenv';
@@ -29,6 +29,7 @@ export class CrawlerController {
         @service( CrawlerService ) private crawlerService: CrawlerService,
         @service( RedisService ) private redisService: RedisService,
         @service( GeodataService ) private geodataService: GeodataService,
+        @service( PriceService ) private priceService: PriceService,
     ) {
         this.redisService.sub.client.on( 'message', ( channel: string, message: string ) => {
 
@@ -94,6 +95,9 @@ export class CrawlerController {
         logger.debug( 'Checking if geodata needs to be updated' );
         await this.geodataService.checkForUpdate();
 
+        logger.debug( 'Checking if prices need to be updated' );
+        await this.priceService.checkForUpdate();
+
         logger.info( 'Start crawling cycle.' );
         clearInterval( this.meterInterval );
 
@@ -107,7 +111,7 @@ export class CrawlerController {
                 throw new Error();
             } );
 
-        // this.lastBlockHeight = 110800;
+        //this.lastBlockHeight = 110900;
 
         this.queuedBlocks = 0;
         this.processedBlocks = 0;
@@ -135,13 +139,6 @@ export class CrawlerController {
                 this.queuedBlocks,
                 this.errorBlocks
             );
-            // if ( this.processedBlocks === this.lastProcessedBlocks ) {
-            //     logger.debug( 'Crawling stacked, stopping workers' );
-            //     this.redisService.pub.client.publish( 'control', 'stop' );
-            //     clearInterval( this.meterInterval );
-            // } else {
-            //     this.lastProcessedBlocks = this.processedBlocks;
-            // }
         }, 60000 );
     }
 
