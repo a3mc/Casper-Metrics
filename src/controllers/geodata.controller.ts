@@ -30,11 +30,11 @@ export class GeodataController {
 			fields: ['version'],
 		} );
 
-		if ( lastVersionResult.length ) {
+		if ( lastVersionResult?.length ) {
 			return this.peersRepository.find( {
 				where: {
 					mission: 'VALIDATOR',
-					version: lastVersionResult,
+					version: lastVersionResult[0].version,
 				},
 				fields: ['city','loc'],
 			} );
