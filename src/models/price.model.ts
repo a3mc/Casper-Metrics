@@ -18,14 +18,104 @@ export class Price extends Entity {
     @property( {
         type: 'number',
         required: true,
+        precision: 10,
+        scale: 0,
+        mysql: {
+            columnName: 'open',
+            dataType: 'float',
+            dataLength: null,
+            dataPrecision: 10,
+            dataScale: 0,
+            nullable: 'N',
+            default: 0,
+        },
     } )
-    price: number;
+    open: number;
 
     @property( {
         type: 'number',
         required: true,
+        precision: 10,
+        scale: 0,
+        mysql: {
+            columnName: 'close',
+            dataType: 'float',
+            dataLength: null,
+            dataPrecision: 10,
+            dataScale: 0,
+            nullable: 'N',
+            default: 0,
+        },
     } )
-    volume: number;
+    close: number;
+
+    @property( {
+        type: 'number',
+        required: true,
+        precision: 10,
+        scale: 0,
+        mysql: {
+            columnName: 'high',
+            dataType: 'float',
+            dataLength: null,
+            dataPrecision: 10,
+            dataScale: 0,
+            nullable: 'N',
+            default: 0,
+        },
+    } )
+    high: number;
+
+    @property( {
+        type: 'number',
+        required: true,
+        precision: 10,
+        scale: 0,
+        mysql: {
+            columnName: 'low',
+            dataType: 'float',
+            dataLength: null,
+            dataPrecision: 10,
+            dataScale: 0,
+            nullable: 'N',
+            default: 0,
+        },
+    } )
+    low: number;
+
+    @property( {
+        type: 'number',
+        required: true,
+        precision: 10,
+        scale: 0,
+        mysql: {
+            columnName: 'volumefrom',
+            dataType: 'float',
+            dataLength: null,
+            dataPrecision: 10,
+            dataScale: 0,
+            nullable: 'N',
+            default: 0,
+        },
+    } )
+    volumeFrom: number;
+
+    @property( {
+        type: 'number',
+        required: true,
+        precision: 10,
+        scale: 0,
+        mysql: {
+            columnName: 'volumeto',
+            dataType: 'float',
+            dataLength: null,
+            dataPrecision: 10,
+            dataScale: 0,
+            nullable: 'N',
+            default: 0,
+        },
+    } )
+    volumeTo: number;
 
 
     constructor( data?: Partial<Price> ) {

@@ -111,7 +111,7 @@ export class CrawlerController {
                 throw new Error();
             } );
 
-        //this.lastBlockHeight = 110900;
+        // this.lastBlockHeight = 130000;
 
         this.queuedBlocks = 0;
         this.processedBlocks = 0;

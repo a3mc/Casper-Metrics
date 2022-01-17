@@ -11,7 +11,7 @@ dotenv.config();
 @injectable( { scope: BindingScope.TRANSIENT } )
 export class PriceService {
 
-	private _requestsLimit = 2;
+	private _requestsLimit = 2000;
 
 	constructor(
 		@repository( PriceRepository ) public priceRepository: PriceRepository,
@@ -46,10 +46,9 @@ export class PriceService {
 	}
 
 	private async _updatePrice(): Promise<void> {
-		const lastDate = await this._getLastStoredPriceDate();
-		const toTs = lastDate.add( this._requestsLimit, 'hours' ).unix();
+		const lastDate: moment.Moment = await this._getLastStoredPriceDate();
+		const toTs: number = lastDate.add( this._requestsLimit, 'hours' ).unix();
 
-		logger.debug( 'here' )
 		const result = await axios.get(
 			'https://min-api.cryptocompare.com/data/v2/histohour?fsym=CSPR&tsym=USD' +
 			'&limit=' + this._requestsLimit +
@@ -58,18 +57,20 @@ export class PriceService {
 		);
 
 		if ( result && result.status === 200 && result.data?.Data?.Data?.length ) {
-			logger.debug( 'in the loop ')
 			for ( const hour of result.data.Data.Data ) {
 				const existingRecord = await this.priceRepository.find( {
-					where: { date: moment( hour.time ).format() }
+					where: { date: moment( hour.time * 1000 ).format() }
 				} );
 
 				if ( ! existingRecord.length ) {
-					logger.debug( 'creating price ')
 					await this.priceRepository.create( {
-						date: moment( hour.time ).format(),
-						price: hour.close,
-						volume: hour.volumefrom
+						date: moment( hour.time * 1000 ).format(),
+						low: hour.low,
+						high: hour.high,
+						open: hour.open,
+						close: hour.close,
+						volumeFrom: hour.volumefrom,
+						volumeTo: hour.volumeto,
 					} );
 				}
 			}
@@ -78,7 +79,7 @@ export class PriceService {
 
 	private async _getLastStoredPriceDate(): Promise<moment.Moment> {
 		const lastRecord = await this.priceRepository.find( {
-			limit : 1,
+			limit: 1,
 			order: ['id DESC'],
 		} );
 
@@ -87,7 +88,6 @@ export class PriceService {
 		}
 
 		const firstEra = await this.eraRepository.findById( 0 );
-
 		return moment( firstEra.start );
 	}
 
