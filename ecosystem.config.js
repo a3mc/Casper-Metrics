@@ -3,7 +3,7 @@ module.exports = {
         {
             script: './dist/index.js',
             name: 'mainnet-prod',
-            max_memory_restart: '2G',
+            max_memory_restart: '8G',
             exec_mode: 'fork',
             watch: false,
             env: {
@@ -17,7 +17,7 @@ module.exports = {
         {
             script: './dist/index.js',
             name: 'testnet-prod',
-            max_memory_restart: '2G',
+            max_memory_restart: '8G',
             exec_mode: 'fork',
             watch: false,
             env: {
@@ -31,7 +31,7 @@ module.exports = {
         {
             script: './dist/index.js',
             name: 'mainnet-dev',
-            max_memory_restart: '2G',
+            max_memory_restart: '8G',
             exec_mode: 'fork',
             watch: false,
             env: {
@@ -45,7 +45,7 @@ module.exports = {
         {
             script: './dist/index.js',
             name: 'testnet-dev',
-            max_memory_restart: '2G',
+            max_memory_restart: '8G',
             exec_mode: 'fork',
             watch: false,
             env: {
@@ -61,7 +61,7 @@ module.exports = {
             script: './dist/workers/crawler.worker.js',
             instances: 4,
             exec_mode: 'cluster',
-            max_memory_restart: '2G',
+            max_memory_restart: '8G',
             watch: false,
             env: {
                 'NODE_ENV': 'production',
@@ -74,7 +74,7 @@ module.exports = {
             script: './dist/workers/crawler.worker.js',
             instances: 4,
             exec_mode: 'cluster',
-            max_memory_restart: '2G',
+            max_memory_restart: '8G',
             watch: false,
             env: {
                 'NODE_ENV': 'production',

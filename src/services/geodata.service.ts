@@ -21,7 +21,8 @@ export class GeodataService {
 				added: {
 					gt: moment().add( 4, 'hours' ).format()
 				}
-			}
+			},
+			limit: 1,
 		} );
 
 		if ( !lastRecord.length ) {
