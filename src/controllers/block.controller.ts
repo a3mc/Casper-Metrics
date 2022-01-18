@@ -4,6 +4,7 @@ import { Block, Era } from '../models';
 import { BlockRepository, EraRepository } from '../repositories';
 import { NotFound } from "../errors/errors";
 import { authenticate } from '@loopback/authentication';
+import moment from 'moment';
 
 export class BlockController {
     constructor(
@@ -26,7 +27,7 @@ export class BlockController {
     } )
     async find(
         @param.query.number( 'blockHeight' ) blockHeight?: number,
-    ): Promise<Partial<Block>> {
+    ): Promise<Block> {
         let filter: Filter<Block> = {
             limit: 1,
             order: ['blockHeight DESC'],
@@ -36,7 +37,7 @@ export class BlockController {
                 blockHeight: blockHeight
             }
         }
-        const block: Partial<Block> | null = await this.blocksRepository.findOne( filter );
+        const block: Block | null = await this.blocksRepository.findOne( filter );
 
         if ( block ) {
             const circulatingSupply: bigint = await this._getLastCirculatingSupply( block );
@@ -49,11 +50,23 @@ export class BlockController {
                 block.validatorsWeights = era.validatorsWeights;
                 block.circulatingSupply = era.circulatingSupply;
             }
+
+            if ( !blockHeight && block.blockHeight ) {
+                const prevBlock = await this.blocksRepository.findOne( {
+                    where: { blockHeight: block.blockHeight - 1 },
+                    fields: ['timestamp']
+                } );
+
+                if ( prevBlock ) {
+                    block.prevBlockTime = moment( block.timestamp )
+                        .diff( prevBlock?.timestamp, 'milliseconds' );
+                }
+            }
         } else {
             throw new NotFound();
         }
 
-        return block;
+        return Object.assign( {}, block );
     }
 
     @get( 'block/circulating' )

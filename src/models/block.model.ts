@@ -281,6 +281,8 @@ export class Block extends Entity {
 
     // Define well-known properties here
 
+    prevBlockTime?: number;
+
     // Indexer property to allow additional data
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [prop: string]: any;
