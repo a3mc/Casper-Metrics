@@ -1,10 +1,23 @@
 import { Count, CountSchema, Filter, FilterExcludingWhere, repository, Where, } from '@loopback/repository';
-import { del, get, getModelSchemaRef, param, patch, post, put, requestBody, response, } from '@loopback/rest';
+import {
+    del,
+    get,
+    getModelSchemaRef,
+    oas,
+    OperationVisibility,
+    param,
+    patch,
+    post,
+    put,
+    requestBody,
+    response,
+} from '@loopback/rest';
 import { Circulating } from '../models';
 import { CirculatingRepository } from '../repositories';
 import { authenticate } from '@loopback/authentication';
 
-@authenticate('jwt')
+@oas.visibility( OperationVisibility.UNDOCUMENTED )
+@authenticate( { strategy: 'jwt', options: { required: ['administrator', 'editor'] } } )
 export class CirculatingController {
     constructor(
         @repository( CirculatingRepository )

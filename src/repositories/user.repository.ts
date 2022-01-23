@@ -7,11 +7,12 @@ export type Credentials = {
   email: string;
   password: string;
   role: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 export class UserRepository extends DefaultCrudRepository<User,
-    typeof User.prototype.id,
-    UserRelations> {
+    typeof User.prototype.id> {
     constructor(
         @inject( 'datasources.metricsDB' ) dataSource: MetricsDbDataSource,
     ) {

@@ -40,6 +40,8 @@ export class MyUserService implements UserService<User, Credentials> {
             [securityId]: user.id!.toString(),
             id: user.id,
             email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
             permissions: user.role
         };
     }

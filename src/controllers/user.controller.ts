@@ -1,7 +1,7 @@
 import { repository, } from '@loopback/repository';
 import { get, getModelSchemaRef, oas, OperationVisibility, post, requestBody, } from '@loopback/rest';
 import { User } from '../models';
-import { UserRepository } from '../repositories';
+import { Credentials, UserRepository } from '../repositories';
 import { JWTService } from '../services/jwt.service';
 import { inject } from '@loopback/core';
 import { PasswordHasherBindings, TokenServiceBindings, UserServiceBindings } from '../keys';
@@ -35,7 +35,7 @@ export class UserController {
         }
     } )
     async signup( @requestBody( {} ) user: any ) {
-        //validateCredentials( _.pick( user, ['email', 'password', 'role'] ) );
+        // ?? validateCredentials( _.pick( user, ['email', 'password', 'role'] ) );
 
         if ( await this.userRepository.findOne( { where: { email: user.email } } ) ) {
             return {
@@ -88,12 +88,8 @@ export class UserController {
                 }
             }
         } ) credentials: any
-    ): Promise<any> {
+    ): Promise<UserProfile> {
         const user = await this.userService.verifyCredentials( credentials );
-        const dbUser = await this.userRepository.findOne( { where: { id: user.id } } )
-        if ( !dbUser ) {
-            throw new NotFound( 'User not found.' );
-        }
         const userProfile = await this.userService.convertToUserProfile( user );
         const token = await this.jwtService.generateToken( userProfile );
         userProfile.token = token;
@@ -118,7 +114,6 @@ export class UserController {
         @inject( AuthenticationBindings.CURRENT_USER )
             currentUser: UserProfile
     ): Promise<any> {
-
         const dbUser = await this.userRepository.findById( currentUser.id );
         if ( !dbUser ) return Promise.reject();
         return Promise.resolve( currentUser );

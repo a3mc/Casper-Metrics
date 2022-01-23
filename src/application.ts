@@ -4,7 +4,7 @@ import { RestExplorerBindings, RestExplorerComponent, } from '@loopback/rest-exp
 import { RepositoryMixin } from '@loopback/repository';
 import { RestApplication } from '@loopback/rest';
 import { ServiceMixin } from '@loopback/service-proxy';
-import { MyAdminSequence } from './sequence-admin';
+import { MySequence } from './sequence';
 import { AuthenticationComponent, registerAuthenticationStrategy } from '@loopback/authentication';
 import { PasswordHasherBindings, TokenServiceBindings, TokenServiceConstants, UserServiceBindings } from './keys';
 import { BcryptHasher } from './services/hash.password';
@@ -27,7 +27,7 @@ export class CasperMetricsApplication extends BootMixin(
         registerAuthenticationStrategy( this, JWTStrategy );
 
         // Set up the custom sequence
-        this.sequence( MyAdminSequence );
+        this.sequence( MySequence );
 
         // Customize @loopback/rest-explorer configuration here
         this.configure( RestExplorerBindings.COMPONENT ).to( {
@@ -62,7 +62,7 @@ export class CasperMetricsApplication extends BootMixin(
             openapi: '3.0.0',
             info: {
                 title: 'Casper Metrics API',
-                version: '0.0.1'
+                version: '0.2.2'
             },
             paths: {},
             components: { securitySchemes: SECURITY_SCHEME_SPEC },
