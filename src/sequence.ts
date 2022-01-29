@@ -38,8 +38,6 @@ export class MySequence implements SequenceHandler {
 			// First we try to find a matching route in the api
 			const { request, response } = context;
 			const finished = await this.invokeMiddleware( context );
-			//response.header( 'Access-Control-Allow-Origin', '*' );
-			//response.header( 'Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization' );
 			if( request.method == 'OPTIONS' ) {
 				response.status( 200 )
 				this.send( response, 'ok' );

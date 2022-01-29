@@ -9,6 +9,7 @@ export type Credentials = {
   role: string;
   firstName?: string;
   lastName?: string;
+  faCode?: string;
 }
 
 export class UserRepository extends DefaultCrudRepository<User,

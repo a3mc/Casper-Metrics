@@ -49,6 +49,10 @@ export class CasperMetricsApplication extends BootMixin(
     }
 
     setupBinding(): void {
+        if ( !TokenServiceConstants.TOKEN_SECRET_VALUE ) {
+            throw new Error( 'No JWT token secret set.' );
+        }
+
         this.bind( PasswordHasherBindings.PASSWORD_HASHER ).toClass( BcryptHasher );
         this.bind( PasswordHasherBindings.ROUNDS ).to( 10 );
         this.bind( UserServiceBindings.USER_SERVICE ).toClass( MyUserService );

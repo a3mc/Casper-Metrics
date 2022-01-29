@@ -81,6 +81,7 @@
         "loopback-connector-redis": "^3.0.0",
         "loopback-datasource-juggler": "^4.26.0",
         "moment": "^2.29.1",
+        "node-2fa": "^2.0.3",
         "node-clone-js": "^1.0.2",
         "tslib": "^2.0.0",
         "winston": "^3.3.3",
