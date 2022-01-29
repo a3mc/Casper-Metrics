@@ -3,11 +3,12 @@ import { BindingKey }                from '@loopback/core';
 import { User }                      from './models';
 import { Credentials }               from './repositories/user.repository';
 import { PasswordHasher }            from './services/hash.password';
-
+import dotenv from 'dotenv';
+dotenv.config();
 
 export namespace TokenServiceConstants {
-    export const TOKEN_SECRET_VALUE = 'FIXME!TEST';
-    export const TOKEN_EXPIRES_IN_VALUE = '48h';
+    export const TOKEN_SECRET_VALUE = process.env.JWT_SECRET;
+    export const TOKEN_EXPIRES_IN_VALUE = '744h'; // 1 Month
 }
 export namespace TokenServiceBindings {
     export const TOKEN_SECRET = BindingKey.create<string>(
