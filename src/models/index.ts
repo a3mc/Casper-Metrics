@@ -8,3 +8,4 @@ export * from './validators-unlock-constants.model';
 export * from './user.model';
 export * from './price.model';
 export * from './peers.model';
+export * from './admin-log.model';

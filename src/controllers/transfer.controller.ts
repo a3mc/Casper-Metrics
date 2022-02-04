@@ -25,17 +25,8 @@ export class TransferController {
 	) {
 	}
 
-	@get( '/transfers/count' )
-	@response( 200, {
-		description: 'Transfer model count',
-		content: { 'application/json': { schema: CountSchema } },
-	} )
-	async count(
-		@param.where( Transfer ) where?: Where<Transfer>,
-	): Promise<Count> {
-		return this.transferRepository.count( where );
-	}
-
+	@oas.visibility( OperationVisibility.UNDOCUMENTED )
+	@authenticate( { strategy: 'jwt' } )
 	@get( '/transfers' )
 	@response( 200, {
 		description: 'Array of Transfer model instances',
@@ -201,7 +192,7 @@ export class TransferController {
 	}
 
 	@oas.visibility( OperationVisibility.UNDOCUMENTED )
-	@authenticate( 'jwt' )
+	@authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
 	@post( '/transfers/approve' )
 	@response( 200, {
 		description: 'Approve transactions as unlocked',

@@ -6,7 +6,7 @@ export function validateCredentials( credentials: Credentials ) {
     if ( !isEmail.validate( credentials.email ) ) {
         throw new HttpErrors.UnprocessableEntity( 'Invalid Email' );
     }
-    if ( credentials.password.length < 10 ) {
-        throw new HttpErrors.UnprocessableEntity( 'Password should be at least 10 symbols' );
+    if ( !credentials.password || credentials.password.length < 12 ) {
+        throw new HttpErrors.UnprocessableEntity( 'Password should be at least 12 symbols' );
     }
 }

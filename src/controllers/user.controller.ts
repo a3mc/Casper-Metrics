@@ -1,26 +1,20 @@
 import { repository } from '@loopback/repository';
-import {
-	get,
-	getModelSchemaRef,
-	oas,
-	OperationVisibility,
-	param,
-	patch,
-	post,
-	requestBody,
-	response,
-} from '@loopback/rest';
+import { get, oas, OperationVisibility, param, post, requestBody, response } from '@loopback/rest';
 import { User } from '../models';
-import { Credentials, UserRepository } from '../repositories';
+import { UserRepository } from '../repositories';
 import { JWTService } from '../services/jwt.service';
 import { inject } from '@loopback/core';
-import { PasswordHasherBindings, TokenServiceBindings, UserServiceBindings } from '../keys';
+import { AdminLogServiceBindings, PasswordHasherBindings, TokenServiceBindings, UserServiceBindings } from '../keys';
 import { MyUserService } from '../services/user.service';
 import { BcryptHasher } from '../services/hash.password';
 import { IncorrectData, NotAllowed, NotFound } from '../errors/errors';
 import { authenticate, AuthenticationBindings } from '@loopback/authentication';
-import { OPERATION_SECURITY_SPEC } from '@loopback/authentication-jwt';
 import { UserProfile } from '@loopback/security';
+import { AdminLogService } from '../services';
+import moment from 'moment';
+import * as crypto from 'crypto';
+import * as nodemailer from 'nodemailer';
+import { logger } from '../logger';
 
 @oas.visibility( OperationVisibility.UNDOCUMENTED )
 export class UserController {
@@ -33,75 +27,92 @@ export class UserController {
 		public userService: MyUserService,
 		@inject( TokenServiceBindings.TOKEN_SERVICE )
 		public jwtService: JWTService,
+		@inject( AdminLogServiceBindings.ADMINLOG_SERVICE )
+		public adminLogService: AdminLogService,
 	) {
 	}
 
 	@authenticate( { strategy: 'jwt', options: { required: ['administrator'] } } )
-	@post( '/new-user', {
-		responses: {
-			'200': {
-				description: 'User',
+	@post( '/invite' )
+	async invite( @requestBody() user: Partial<User> ): Promise<void> {
+		if ( await this.userRepository.findOne( {
+			where: {
+				email: user.email,
 			},
-		},
-	} )
-	async newUser( @requestBody( {} ) user: User ) {
-
-		if ( await this.userRepository.findOne( { where: { email: user.email } } ) ) {
-			return {
-				error: 'User with this email already exists.',
-			};
+		} ) ) {
+			throw new NotAllowed( 'User with this email already exists.' );
 		}
 
-		if ( user.password.length < 12 ) {
-			return {
-				error: 'Password is less than 12 characters in length.',
-			};
-		}
+		const token = crypto.randomBytes( 48 ).toString( 'hex' );
 
-		user.password = await this.hasher.hashPassword( user.password );
-		const savedUser: User = await this.userRepository.create( user );
-		const userProfile = await this.userService.convertToUserProfile( savedUser );
-		return userProfile;
+		await this.userRepository.create( {
+			email: user.email,
+			firstName: user.firstName,
+			lastName: user.lastName,
+			active: false,
+			deleted: false,
+			invitedAt: moment().format(),
+			inviteToken: token,
+			role: 'viewer',
+		} );
+
+		this._sendActivationLink( user, token );
 	}
 
-	@post( '/login', {
-		responses: {
-			'200': {
-				description: 'Token',
-				content: {
-					'application/json': {
-						schema: {
-							type: 'object',
-							properties: {
-								token: {
-									type: 'string',
-								},
-							},
-						},
-					},
+	@get( '/activate' )
+	async activate(
+		@param.query.string( 'token' ) token: string,
+	): Promise<any> {
+		const user = await this.userRepository.findOne( {
+			where: {
+				active: false,
+				deleted: false,
+				inviteToken: token,
+				invitedAt: {
+					gt: moment().add( -24, 'hours' ).format(),
 				},
 			},
-		},
-	} )
+		} );
+
+		if ( !user ) {
+			throw new NotFound( 'User not found' );
+		}
+
+		return {
+			email: user.email,
+			firstName: user.firstName,
+			lastName: user.lastName,
+		};
+	}
+
+	@post( '/login' )
 	async login(
-		@requestBody( {
-			content: {
-				'application/json': {
-					schema: {
-						type: 'object',
-						properties: {
-							email: {
-								type: 'string',
-							},
-							password: {
-								type: 'string',
-							},
-						},
-					},
-				},
-			},
-		} ) credentials: any,
-	): Promise<UserProfile> {
+		@requestBody() credentials: any,
+	): Promise<any> {
+		// First admin login.
+		if (
+			process.env.ADMIN_EMAIL && process.env.ADMIN_EMAIL === credentials.email &&
+			process.env.ADMIN_FIRST_NAME &&
+			process.env.ADMIN_LAST_NAME &&
+			process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD === credentials.password &&
+			! ( await this.userRepository.count() ).count
+		) {
+			logger.info( 'Creating invite link for the first admin:' + credentials.email );
+			await this.invite( {
+				firstName: process.env.ADMIN_FIRST_NAME,
+				lastName: process.env.ADMIN_LAST_NAME,
+				email: credentials.email,
+				password: credentials.password
+			} );
+
+			const adminUser = await this.userRepository.findOne( {
+				where: { email: credentials.email }
+			} );
+
+			return { activate: adminUser?.inviteToken };
+		}
+
+
 		const user = await this.userService.verifyCredentials( credentials );
 		const userProfile = await this.userService.convertToUserProfile( user );
 		const token = await this.jwtService.generateToken( userProfile );
@@ -110,129 +121,221 @@ export class UserController {
 	}
 
 	@authenticate( { strategy: 'jwt' } )
-	@get( '/me', {
-		security: OPERATION_SECURITY_SPEC,
-		responses: {
-			'200': {
-				description: 'The current user profile',
-				content: {
-					'application/json': {
-						schema: getModelSchemaRef( User ),
-					},
-				},
-			},
-		},
-	} )
+	@get( '/me' )
 	async me(
-		@inject( AuthenticationBindings.CURRENT_USER )
-			currentUser: UserProfile,
+		@inject( AuthenticationBindings.CURRENT_USER ) currentUser: UserProfile,
 	): Promise<Partial<User>> {
-		const dbUser = await this.userRepository.findById( currentUser.id, {
-			fields: [ 'id', 'email', 'firstName', 'lastName', 'role', 'fa' ]
+		const dbUser = await this.userRepository.findOne( {
+			where: {
+				id: currentUser.id,
+				active: true,
+				deleted: false,
+			},
+			fields: ['id', 'email', 'firstName', 'lastName', 'role'],
 		} );
 		if ( !dbUser ) {
 			throw new NotAllowed( 'Not allowed' );
-		};
+		}
 
 		return Promise.resolve( dbUser );
 	}
 
-	@authenticate( { strategy: 'jwt' } )
-	@get( '/generate2fa', {
-		security: OPERATION_SECURITY_SPEC,
-		responses: {
-			'200': {
-				description: 'Generate 2FA for current user',
-			},
-		},
-	} )
+	@get( '/generate2fa' )
 	async generate2fa(
-		@inject( AuthenticationBindings.CURRENT_USER )
-			currentUser: UserProfile,
+		@param.query.string( 'email' ) email: string,
 	): Promise<any> {
-		const dbUser = await this.userRepository.findById( currentUser.id );
-		if ( !dbUser || !dbUser.active ) {
-			throw new NotAllowed( 'Not allowed' );
-		}
-
-		return this.userService.generate2FASecret( dbUser.email );
+		return this.userService.generate2FASecret( email );
 	}
 
+	@get( '/verify2fa' )
+	async verify2fa(
+		@param.query.string( 'secret' ) secret: string,
+		@param.query.string( 'token' ) token: string,
+	): Promise<any> {
+		return this.userService.verify2FASecret( secret, token );
+	}
 
 	@authenticate( { strategy: 'jwt', options: { required: ['administrator'] } } )
 	@get( '/users' )
-	@response( 200, {
-		description: 'Array of User model instances',
-		content: {
-			'application/json': {
-				schema: {
-					type: 'array',
-					items: getModelSchemaRef( User, { includeRelations: true } ),
-				},
-			},
-		},
-	} )
+	@response( 200 )
 	async findAll(): Promise<User[]> {
 		return this.userRepository.find( {
-			fields: ['id', 'firstName', 'lastName', 'email', 'role', 'active', 'fa'],
+			fields: ['id', 'firstName', 'lastName', 'email', 'role', 'active', 'deleted'],
 		} );
 	}
 
-	@authenticate( { strategy: 'jwt' } )
-	@post( '/users/{id}' )
-	@response( 204, {
-		description: 'User update',
-	} )
-	async updateById(
+	@authenticate( { strategy: 'jwt', options: { required: ['administrator'] } } )
+	@post( '/users/{id}/role/{role}' )
+	@response( 204 )
+	async updateRole(
 		@param.path.number( 'id' ) id: number,
-		@inject( AuthenticationBindings.CURRENT_USER )
-			currentUser: UserProfile,
-		@requestBody( {
-			content: {
-				'application/json': {
-					schema: getModelSchemaRef( User, { partial: true } ),
-				},
-			},
-		} )
-			user: Partial<User>,
+		@param.path.string( 'role' ) role: string,
+		@inject( AuthenticationBindings.CURRENT_USER ) currentUser: UserProfile,
 	): Promise<any> {
 		// User who performs the editing.
-		const dbUser = await this.userRepository.findById( currentUser.id );
+		const adminUser = await this.userRepository.findById( currentUser.id );
+		const user = await this.userRepository.findById( id );
 
 		// Not-existing or deactivated user.
-		if ( !dbUser || !dbUser.active ) {
-			throw new NotAllowed( 'Error updating profile' );
+		if ( !user || !user.active || user.deleted ) {
+			throw new NotFound( 'Invalid user account' );
 		}
 
-		if ( dbUser.role !== 'administrator' ) {
-			// Regular user can edit only their own profile. Excluding certain fields.
-			if ( dbUser.id !== id ) {
-				throw new NotAllowed( 'Error updating profile' );
-			}
-			delete user.role;
-			delete user.active;
-			delete user.email;
-		} else {
-			if ( dbUser.id === id ) {
-				// Administrators can't deactivate themselves, neither change the role.
-				delete user.role;
-				delete user.active;
-			} else {
-				// Administrators only can disable 2FA for other users, but not to set the secret.
-				delete user.faSecret;
-			}
+		if ( adminUser.id === id ) {
+			throw new NotAllowed( 'Administrators can\'t change their roles.' );
 		}
 
-		// Id cannot be changed.
-		delete user.id;
-
-		if ( user.password ) {
-			if ( user.password.length < 12 ) {
-				throw new IncorrectData( 'Password is less than 12 characters in length.' );
-			}
-			user.password = await this.hasher.hashPassword( user.password );
+		if ( !['viewer', 'editor', 'administrator'].includes( role ) ) {
+			throw new IncorrectData( 'Invalid user role' );
 		}
+
+		if ( role === user.role ) {
+			throw new IncorrectData( 'User already has this role.' );
+		}
+
+		// All good to change the role.
+		user.role = role;
 
 		await this.userRepository.updateById( id, user );
+		await this.adminLogService.write( 'Updated user profile of ' );
+	}
+
+	@authenticate( { strategy: 'jwt', options: { required: ['administrator'] } } )
+	@post( '/users/{id}/reset' )
+	@response( 204 )
+	async resetUser(
+		@param.path.number( 'id' ) id: number,
+		@inject( AuthenticationBindings.CURRENT_USER ) currentUser: UserProfile,
+	): Promise<any> {
+		const user = await this.userRepository.findById( id );
+
+		// Not-existing or deactivated user.
+		if ( !user || user.deleted ) {
+			throw new NotFound( 'Invalid user account' );
+		}
+
+		if ( currentUser.id === id ) {
+			throw new NotAllowed( 'Administrators can\'t reset their own credentials.' );
+		}
+
+		const token = crypto.randomBytes( 48 ).toString( 'hex' );
+
+		await this.userRepository.updateById( id, {
+			active: false,
+			invitedAt: moment().format(),
+			inviteToken: token,
+			role: 'viewer',
+			password: '',
+			faSecret: '',
+		} );
+
+		this._sendActivationLink( user, token );
+	}
+
+	@authenticate( { strategy: 'jwt', options: { required: ['administrator'] } } )
+	@post( '/users/{id}/deactivate' )
+	@response( 204 )
+	async deactivateUser(
+		@param.path.number( 'id' ) id: number,
+		@inject( AuthenticationBindings.CURRENT_USER ) currentUser: UserProfile,
+	): Promise<any> {
+		const user = await this.userRepository.findById( id );
+
+		// Not-existing or deactivated user.
+		if ( !user || user.deleted ) {
+			throw new NotFound( 'Invalid user account' );
+		}
+
+		if ( currentUser.id === id ) {
+			throw new NotAllowed( 'Administrators can\'t deactivate their own credentials.' );
+		}
+
+		await this.userRepository.updateById( id, {
+			deleted: true,
+			active: false,
+		} );
+	}
+
+	@post( '/activate' )
+	@response( 200 )
+	async activateUser(
+		@requestBody() userData: any,
+	): Promise<any> {
+		const user = await this.userRepository.findOne( {
+			where: {
+				active: false,
+				deleted: false,
+				inviteToken: userData.token,
+				invitedAt: {
+					gt: moment().add( -24, 'hours' ).format(),
+				},
+			},
+		} );
+
+		if ( !user ) {
+			throw new NotFound( 'User not found' );
+		}
+
+		if ( !userData.password || userData.password.length < 12 ) {
+			throw new IncorrectData( 'Password is less than 12 characters in length' );
+		}
+
+		if ( !userData.secret || !userData.secret.length ) {
+			throw new IncorrectData( 'No 2FA secret provided' );
+		}
+
+		let role = 'viewer';
+
+		// Check for the first admin sign in.
+		if (
+			process.env.ADMIN_EMAIL && process.env.ADMIN_EMAIL === user.email &&
+			( await this.userRepository.count() ).count === 1
+		) {
+			role = 'administrator';
+		}
+
+		await this.userRepository.updateById( user.id, {
+			active: true,
+			password: await this.hasher.hashPassword( userData.password ),
+			faSecret: userData.secret,
+			inviteToken: '',
+			role: role,
+		} );
+		await this.adminLogService.write(
+			user.firstName + ' ' + user.lastName + ' (' + user.email + ') has activated his account.',
+		);
+	}
+
+	private async _sendActivationLink( user: Partial<User>, token: string ): Promise<void> {
+		const linkUrl: string = String( process.env.ADMIN_PANEL_URL ) + '/?activate=' + token;
+		const mailSubject = 'Invitation for your Casper Metrics account';
+		const mailText = 'Please follow the link to complete your sign up process. Link expires in 24h. ' + linkUrl;
+		const mailHtml = 'Please follow <a href="' + linkUrl + '">the link</a> to complete your signup process. Link expires in 24h.';
+
+		logger.info( 'Sending admin dashboard invite email to ' + user.email );
+
+		if ( process.env.OUTPUT_EMAILS_TO_LOG ) {
+			logger.info( mailText );
+		}
+
+		if ( process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASSWORD ) {
+			const transporter = nodemailer.createTransport( {
+				host: process.env.SMTP_HOST,
+				port: Number( process.env.SMTP_PORT ),
+				secure: Number( process.env.SMTP_PORT ) === 465,
+				auth: {
+					user: process.env.SMTP_USER,
+					pass: process.env.SMTP_PASSWORD,
+				},
+			} );
+
+			await transporter.sendMail( {
+				from: '"Casper Metrics" <' + process.env.SMTP_USER + '>',
+				to: user.email,
+				subject: mailSubject,
+				text: mailText,
+				html: mailHtml,
+			} );
+		}
 	}
 }

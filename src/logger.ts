@@ -20,19 +20,17 @@ export const logger = winston.createLogger( {
     ],
 } );
 
-// if ( process.env.TG_TOKEN && process.env.TG_CHAT_ID ) {
-//     logger.add( new TelegramLogger( {
-//         level: 'error',
-//         token: process.env.TG_TOKEN,
-//         chatId: process.env.TG_CHAT_ID
-//     } ) );
-// }
-
-//if ( process.env.NODE_ENV !== 'production' ) {
-    logger.add( new winston.transports.Console( {
-        format: combine(
-            winston.format.colorize(),
-            winston.format.simple(),
-        )
+if ( process.env.TG_TOKEN && process.env.TG_CHAT_ID ) {
+    logger.add( new TelegramLogger( {
+        level: 'error',
+        token: process.env.TG_TOKEN,
+        chatId: process.env.TG_CHAT_ID
     } ) );
-//}
+}
+
+logger.add( new winston.transports.Console( {
+    format: combine(
+        winston.format.colorize(),
+        winston.format.simple(),
+    )
+} ) );
