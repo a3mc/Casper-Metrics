@@ -24,27 +24,35 @@ export class MyUserService implements UserService<User, Credentials> {
 			where: {
 				email: credentials.email,
 				active: true,
+				deleted: false,
 			},
 		} );
 		if ( !foundUser ) {
 			throw new HttpErrors.NotFound( 'User not found' );
 		}
+
+		if ( !credentials.password || !foundUser.password ) {
+			throw new HttpErrors.Unauthorized( 'Password is not valid' );
+		}
+
 		const passwordMatched = await this.hasher.comparePassword( credentials.password, foundUser.password );
 		if ( !passwordMatched ) {
 			throw new HttpErrors.Unauthorized( 'Password is not valid' );
 		}
 
-		if ( foundUser.fa && foundUser.faSecret ) {
-			if ( !credentials.faCode ) {
-				throw new HttpErrors.Unauthorized( 'No 2FA code provided' );
-			}
+		if ( !credentials.faCode ) {
+			throw new HttpErrors.Unauthorized( 'No 2FA code provided' );
+		}
 
-			if ( !twofactor.verifyToken( foundUser.faSecret, credentials.faCode ) ) {
-				throw new HttpErrors.Unauthorized( '2FA code is not valid' );
-			}
+		if ( !twofactor.verifyToken( foundUser.faSecret, credentials.faCode ) ) {
+			throw new HttpErrors.Unauthorized( '2FA code is not valid' );
 		}
 
 		return foundUser;
+	}
+
+	verify2FASecret( secret: string, token: string ): boolean {
+		return !!twofactor.verifyToken( secret, token );
 	}
 
 	convertToUserProfile( user: User ): UserProfile {

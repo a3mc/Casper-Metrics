@@ -83,6 +83,7 @@
         "moment": "^2.29.1",
         "node-2fa": "^2.0.3",
         "node-clone-js": "^1.0.2",
+        "nodemailer": "^6.7.2",
         "tslib": "^2.0.0",
         "winston": "^3.3.3",
         "winston-telegram": "^2.3.5"
@@ -96,6 +97,7 @@
         "@types/bcryptjs": "^2.4.2",
         "@types/coingecko-api": "^1.0.4",
         "@types/node": "^10.17.59",
+        "@types/nodemailer": "^6.4.4",
         "@types/redis": "^2.8.31",
         "eslint": "^7.25.0",
         "source-map-support": "^0.5.19",

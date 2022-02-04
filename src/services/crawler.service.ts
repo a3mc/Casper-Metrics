@@ -18,6 +18,7 @@ import moment from 'moment';
 import { CirculatingService } from './circulating.service';
 import dotenv from 'dotenv';
 import * as async from 'async';
+
 dotenv.config();
 
 export interface CasperServiceSet {
@@ -65,11 +66,11 @@ export class CrawlerService {
 
 		// All nodes with the same lastBlock
 		this._casperServices = this._casperServices.filter(
-			node => node.lastBlock === maxLastBlock
+			node => node.lastBlock === maxLastBlock,
 		);
 
 		if ( this._casperServices.length < this._minRpcNodes ) {
-			logger.debug ( 'Not enough active RPC nodes with the same last block. Re-trying in 5 seconds.' );
+			logger.debug( 'Not enough active RPC nodes with the same last block. Re-trying in 5 seconds.' );
 			await this._sleep( 5000 );
 			return await this.getLastBlockHeight();
 		}
@@ -78,8 +79,8 @@ export class CrawlerService {
 		for ( const service of this._casperServices ) {
 			await this._addService( service );
 		}
-		
-		logger.info(
+
+		logger.debug(
 			'Launched %d Casper Services - last block %d',
 			this._casperServices.length,
 			maxLastBlock,
@@ -97,7 +98,7 @@ export class CrawlerService {
 		const blockInfo: any = await service.node.getBlockInfoByHeight( blockHeight )
 			.catch( async () => {
 				await this._banService( service );
-				throw new Error( 'Cant getblock info in createBLock' );
+				throw new Error( 'Cant get block info in createBLock' );
 			} );
 
 		const stateRootHash: string = blockInfo.block.header.state_root_hash;
@@ -114,13 +115,13 @@ export class CrawlerService {
 		const eraId: number = blockInfo.block.header.era_id;
 
 		if ( blockInfo.block.body.deploy_hashes?.length ) {
-		    deploys = blockInfo.block.body.deploy_hashes.length;
-		    staked = await this._processDeploys( blockInfo.block.body.deploy_hashes );
+			deploys = blockInfo.block.body.deploy_hashes.length;
+			staked = await this._processDeploys( blockInfo.block.body.deploy_hashes );
 		}
 
 		if ( blockInfo.block.body.transfer_hashes?.length ) {
-		    transfers = blockInfo.block.body.transfer_hashes.length;
-		    await this._processTransfers( blockInfo.block.body.transfer_hashes, blockHeight, eraId );
+			transfers = blockInfo.block.body.transfer_hashes.length;
+			await this._processTransfers( blockInfo.block.body.transfer_hashes, blockHeight, eraId );
 		}
 
 		let isSwitchBlock = false;
@@ -131,45 +132,43 @@ export class CrawlerService {
 		let delegatorsCount = 0;
 
 		if ( blockInfo.block.header.era_end ) {
-		    isSwitchBlock = true;
-		    nextEraValidatorsWeights = this._denominate( await this._getValidatorsWeights(
-		        blockInfo.block.header.era_end.next_era_validator_weights
-		    ) );
+			isSwitchBlock = true;
+			nextEraValidatorsWeights = this._denominate( await this._getValidatorsWeights(
+				blockInfo.block.header.era_end.next_era_validator_weights,
+			) );
 
 
-		    const service = await this._getCasperService();
+			const service = await this._getCasperService();
 
-		    const transport = new HTTPTransport(
-		        'http://' + service.ip + ':7777/rpc'
-		    );
-		    const client = new Client( new RequestManager( [transport] ) );
+			const transport = new HTTPTransport(
+				'http://' + service.ip + ':7777/rpc',
+			);
+			const client = new Client( new RequestManager( [transport] ) );
 
-		    const result = await client.request( {
-		        method: 'chain_get_era_info_by_switch_block',
-		        params: {
-		            block_identifier: {
-		                Hash: blockInfo.block.hash
-		            }
-		        }
-		    } )
-		        .catch( error => {
+			const result = await client.request( {
+				method: 'chain_get_era_info_by_switch_block',
+				params: {
+					block_identifier: {
+						Hash: blockInfo.block.hash,
+					},
+				},
+			} )
+				.catch( error => {
 					this._banService( service );
-		            logger.debug( 'Error getting chain_get_era_info_by_switch_block')
-		            throw new Error( error );
-		        } );
-		    const allocations = result.era_summary.stored_value.EraInfo.seigniorage_allocations;
+					throw new Error( error );
+				} );
+			const allocations = result.era_summary.stored_value.EraInfo.seigniorage_allocations;
 
-		    // TODO: count unique
-		    allocations.forEach( ( allocation: any ) => {
-		        if ( allocation.Validator ) {
-		            validatorsCount++;
-		            validatorsSum += BigInt( allocation.Validator.amount );
-		        }
-		        if ( allocation.Delegator ) {
-		            delegatorsCount++;
-		            delegatorsSum += BigInt( allocation.Delegator.amount );
-		        }
-		    } );
+			allocations.forEach( ( allocation: any ) => {
+				if ( allocation.Validator ) {
+					validatorsCount++;
+					validatorsSum += BigInt( allocation.Validator.amount );
+				}
+				if ( allocation.Delegator ) {
+					delegatorsCount++;
+					delegatorsSum += BigInt( allocation.Delegator.amount );
+				}
+			} );
 		}
 
 		if ( await this.blocksRepository.exists( blockHeight ) ) {
@@ -213,7 +212,7 @@ export class CrawlerService {
 			logger.debug(
 				'Calculation started. Taking %d of %d blocks total',
 				this._calcBatchSize,
-				totalBlockSize
+				totalBlockSize,
 			);
 			blocks = blocks.slice( 0, this._calcBatchSize );
 		} else {
@@ -224,7 +223,7 @@ export class CrawlerService {
 		let queue = [];
 
 		for ( const block of blocks ) {
-			queue.push( async() => { await this._updateBlockTransfers( block ); }  );
+			await this._updateBlockTransfers( block );
 
 			let prevBlock: Block | null = null;
 
@@ -259,18 +258,13 @@ export class CrawlerService {
 			blockCount++;
 		}
 
-		if ( queue.length ) {
-			logger.debug( 'Transfers async queue of %d', queue.length )
-			await async.parallelLimit( queue, 100 );
-		}
-
 		await this.redisService.client.setAsync( 'lastcalc', blocks[blocks.length - 1].blockHeight );
 
 		if ( totalBlockSize > this._calcBatchSize ) {
 			await this.calcBlocksAndEras();
 		} else {
 			await this.redisService.client.setAsync( 'calculating', 0 );
-			logger.debug('Calculation finished.' );
+			logger.debug( 'Calculation finished.' );
 		}
 	}
 
@@ -372,7 +366,7 @@ export class CrawlerService {
 			logger.debug( 'Node didn\'t return lastBlock %s', ip );
 			return;
 		}
-		this._casperServices.push( casperServiceSet )
+		this._casperServices.push( casperServiceSet );
 	}
 
 	private async _resetNetworks(): Promise<void> {
@@ -390,7 +384,7 @@ export class CrawlerService {
 
 	private async _banService( service: CasperServiceSet ): Promise<void> {
 		let banLevel = Number( await this.redisService.client.getAsync( 'ban' + service.ip ) );
-		banLevel ++;
+		banLevel++;
 		await this.redisService.client.setAsync( 'ban' + service.ip, banLevel.toString() );
 		logger.debug( 'Banned %s to %d level', service.ip, banLevel );
 	}
@@ -401,14 +395,14 @@ export class CrawlerService {
 	}
 
 	private async _getCasperService(): Promise<CasperServiceSet> {
-		if ( ! this._casperServices.length ) {
+		if ( !this._casperServices.length ) {
 			throw new Error( 'No RPC services available.' );
 		}
 		const rpcs: CasperServiceSet[] = [];
 		for ( const service of this._casperServices ) {
 			const lastQueried: string = await this.redisService.client.getAsync( 'rpc' + service.ip );
 			const banned: string = await this.redisService.client.getAsync( 'ban' + service.ip );
-			service.lastQueried = parseInt( lastQueried  );
+			service.lastQueried = parseInt( lastQueried );
 			service.banLevel = parseInt( banned );
 			if ( service.banLevel < this._maxRpcBanLevel ) {
 				rpcs.push( service );
@@ -570,10 +564,10 @@ export class CrawlerService {
 					for ( const transform of executionResult.result.Success.effect.transforms ) {
 						const transformKey = transform.key.toLowerCase();
 						const successTransfers = executionResult.result.Success.transfers.map(
-							( item: string ) => item.toLowerCase()
+							( item: string ) => item.toLowerCase(),
 						);
 						if (
-							transform.transform.WriteTransfer  &&
+							transform.transform.WriteTransfer &&
 							successTransfers.includes( transformKey )
 						) {
 							const transfer = transform.transform.WriteTransfer;
@@ -642,7 +636,8 @@ export class CrawlerService {
 				.catch( async () => {
 					await this._banService( service );
 					throw new Error();
-				} );;
+				} );
+			;
 
 			for ( const executionResult of deployResult.execution_results ) {
 				if (

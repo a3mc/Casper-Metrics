@@ -5,7 +5,7 @@ import { inject }                from '@loopback/core';
 
 export type Credentials = {
   email: string;
-  password: string;
+  password?: string;
   role: string;
   firstName?: string;
   lastName?: string;

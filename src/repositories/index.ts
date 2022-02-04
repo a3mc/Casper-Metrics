@@ -8,3 +8,4 @@ export * from './validators-unlock-constants.repository';
 export * from './user.repository';
 export * from './price.repository';
 export * from './peers.repository';
+export * from './admin-log.repository';

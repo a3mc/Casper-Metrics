@@ -9,7 +9,6 @@ import { CirculatingService } from "../services";
 import { authenticate } from '@loopback/authentication';
 
 @oas.visibility( OperationVisibility.UNDOCUMENTED )
-@authenticate('jwt')
 export class ValidatorsUnlockController {
     constructor(
         @repository( ValidatorsUnlockRepository )
@@ -21,6 +20,7 @@ export class ValidatorsUnlockController {
     ) {
     }
 
+    @authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
     @post( '/validators-unlock' )
     @response( 200, {
         description: 'ValidatorsUnlock model instance',
@@ -41,6 +41,7 @@ export class ValidatorsUnlockController {
         await this.calculateValidatorsUnlocks();
     }
 
+    @authenticate( { strategy: 'jwt' } )
     @get( '/validators-unlock' )
     @response( 200, {
         description: 'Array of ValidatorsUnlock model instances',

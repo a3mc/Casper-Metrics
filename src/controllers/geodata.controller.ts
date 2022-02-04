@@ -1,8 +1,7 @@
-import { Filter, FilterExcludingWhere, repository } from '@loopback/repository';
-import { param, get, getModelSchemaRef, response, oas, OperationVisibility } from '@loopback/rest';
+import { repository } from '@loopback/repository';
+import { get, getModelSchemaRef, response } from '@loopback/rest';
 import { Peers } from '../models';
 import { PeersRepository } from '../repositories';
-import moment from 'moment';
 
 export class GeodataController {
 	constructor(
@@ -36,25 +35,10 @@ export class GeodataController {
 					mission: 'VALIDATOR',
 					version: lastVersionResult[0].version,
 				},
-				fields: ['city','loc'],
+				fields: ['city', 'loc'],
 			} );
 		}
 		return [];
 	}
 
-	@get( '/geodata/{id}' )
-	@response( 200, {
-		description: 'Peers model instance',
-		content: {
-			'application/json': {
-				schema: getModelSchemaRef( Peers, { includeRelations: false } ),
-			},
-		},
-	} )
-	async findById(
-		@param.path.number( 'id' ) id: number,
-		@param.filter( Peers, { exclude: 'where' } ) filter?: FilterExcludingWhere<Peers>,
-	): Promise<Peers> {
-		return this.peersRepository.findById( id, filter );
-	}
 }

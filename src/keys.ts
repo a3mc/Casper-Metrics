@@ -4,11 +4,12 @@ import { User }                      from './models';
 import { Credentials }               from './repositories/user.repository';
 import { PasswordHasher }            from './services/hash.password';
 import dotenv from 'dotenv';
+import { AdminLogService } from './services';
 dotenv.config();
 
 export namespace TokenServiceConstants {
     export const TOKEN_SECRET_VALUE = process.env.JWT_SECRET;
-    export const TOKEN_EXPIRES_IN_VALUE = '744h'; // 1 Month
+    export const TOKEN_EXPIRES_IN_VALUE = '24h';
 }
 export namespace TokenServiceBindings {
     export const TOKEN_SECRET = BindingKey.create<string>(
@@ -32,6 +33,12 @@ export namespace PasswordHasherBindings {
 export namespace UserServiceBindings {
     export const USER_SERVICE = BindingKey.create<UserService<Credentials, User>>(
         'services.user.service'
+    );
+}
+
+export namespace AdminLogServiceBindings {
+    export const ADMINLOG_SERVICE = BindingKey.create<AdminLogService>(
+        'services.adminlog.service'
     );
 }
 

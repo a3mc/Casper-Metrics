@@ -7,4 +7,3 @@ export * from './transfer.controller';
 export * from './validators-unlock.controller';
 export * from './known-accounts.controller';
 export * from './geodata.controller';
-export * from './circulating.controller';

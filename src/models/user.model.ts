@@ -10,6 +10,18 @@ export class User extends Entity {
     id?: number;
 
     @property( {
+        type: 'date',
+        required: false
+    } )
+    invitedAt?: string;
+
+    @property( {
+        type: 'string',
+        required: false
+    } )
+    inviteToken?: string;
+
+    @property( {
         type: 'string',
         required: true,
     } )
@@ -19,19 +31,19 @@ export class User extends Entity {
         type: 'string',
         required: false,
     } )
-    firstName?: string;
+    firstName: string;
 
     @property( {
         type: 'string',
         required: false,
     } )
-    lastName?: string;
+    lastName: string;
 
     @property( {
         type: 'string',
-        required: true,
+        required: false,
     } )
-    password: string;
+    password?: string;
 
     @property( {
         type: 'string',
@@ -42,7 +54,7 @@ export class User extends Entity {
     @property( {
         type: 'boolean',
         required: false,
-        default: true,
+        default: false,
     } )
     active?: boolean;
 
@@ -51,7 +63,7 @@ export class User extends Entity {
         required: false,
         default: false,
     } )
-    fa?: boolean;
+    deleted?: boolean;
 
     @property( {
         type: 'string',
