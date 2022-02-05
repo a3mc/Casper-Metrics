@@ -39,7 +39,7 @@ if ( require.main === module ) {
 				basePath: '/',
 				cors: {
 					origin: '*',
-					methods: 'OPTIONS,GET,HEAD',
+					methods: 'OPTIONS,GET,HEAD,POST',
 					preflightContinue: false,
 					optionsSuccessStatus: 204,
 					credentials: true,
