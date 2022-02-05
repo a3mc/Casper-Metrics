@@ -42,7 +42,7 @@ if ( require.main === module ) {
 					methods: 'OPTIONS,GET,HEAD,POST',
 					preflightContinue: false,
 					optionsSuccessStatus: 204,
-					credentials: true,
+					credentials: false,
 				},
 			},
 		};
