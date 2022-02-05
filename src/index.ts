@@ -19,6 +19,7 @@ if ( require.main === module ) {
 	// Run the application
 
 	if ( process.env.PUBLIC_API_PORT ) {
+		console.log('has public', process.env.PUBLIC_API_PORT)
 		const config = {
 			shutdown: {
 				gracePeriod: 5000,
@@ -42,7 +43,7 @@ if ( require.main === module ) {
 					methods: 'OPTIONS,GET,HEAD,POST',
 					preflightContinue: false,
 					optionsSuccessStatus: 204,
-					credentials: false,
+					credentials: true,
 				},
 			},
 		};
