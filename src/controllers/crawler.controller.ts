@@ -111,8 +111,6 @@ export class CrawlerController {
                 throw new Error();
             } );
 
-        this.lastBlockHeight = 130000;
-
         this.queuedBlocks = 0;
         this.processedBlocks = 0;
         this.lastCalculated = await this.redisService.client.getAsync( 'lastcalc' )  ?
