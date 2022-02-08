@@ -117,6 +117,7 @@ export class TransferController {
 			totalItems: await this.transferRepository.count( filter.where ),
 			approvedSum: Number( approvedSum / BigInt( 1000000000 ) ),
 			totalSum: Number( totalSum / BigInt( 1000000000 ) ),
+			allOutbound: fromHash && allData.length ? allData[0].allOutbound : undefined,
 			data: data,
 		};
 	}
@@ -208,27 +209,44 @@ export class TransferController {
 	async approve(
 		@param.query.string( 'approvedIds' ) approvedIds?: string,
 		@param.query.string( 'declinedIds' ) declinedIds?: string,
+		@param.query.string( 'allOutboundHash' ) allOutboundHash?: string,
+		@param.query.boolean( 'allOutbound' ) allOutbound?: boolean,
 	): Promise<void> {
-		if ( approvedIds ) {
-			const approved: number[] = approvedIds.split( ',' ).map(
-				id => Number( id ),
-			);
-			for ( const id of approved ) {
-				await this.transferRepository.updateById( id, {
-					approved: true,
-				} );
+		if ( allOutboundHash && allOutbound !== undefined ) {
+			const fromOutbound = await this.transferRepository.find( {
+				where: {
+					fromHash: allOutboundHash,
+				}
+			} );
+
+			for ( const transfer of fromOutbound ) {
+				transfer.allOutbound = allOutbound;
+				await this.transferRepository.updateById( transfer.id,  transfer );
+			}
+		} else {
+			if ( approvedIds ) {
+				const approved: number[] = approvedIds.split( ',' ).map(
+					id => Number( id ),
+				);
+				for ( const id of approved ) {
+					await this.transferRepository.updateById( id, {
+						approved: true,
+					} );
+				}
+			}
+
+			if ( declinedIds ) {
+				const declined: number[] = declinedIds.split( ',' ).map(
+					id => Number( id ),
+				);
+				for ( const id of declined ) {
+					await this.transferRepository.updateById( id, {
+						approved: false,
+					} );
+				}
 			}
 		}
-		if ( declinedIds ) {
-			const declined: number[] = declinedIds.split( ',' ).map(
-				id => Number( id ),
-			);
-			for ( const id of declined ) {
-				await this.transferRepository.updateById( id, {
-					approved: false,
-				} );
-			}
-		}
+
 		const approvedTransfers = await this.transferRepository.find( {
 			where: {
 				approved: true,
@@ -243,15 +261,12 @@ export class TransferController {
 		if ( approvedTransfers ) {
 			let circulating = [];
 			for ( const transfer of approvedTransfers ) {
-				const block = await this.blockRepository.findById( transfer.blockHeight, {
-					fields: ['eraId'],
-				} );
 				circulating.push( {
 					timestamp: transfer.timestamp,
 					unlock: transfer.amount,
 					deployHash: transfer.deployHash,
 					blockHeight: transfer.blockHeight,
-					eraId: block.eraId,
+					eraId: transfer.eraId,
 				} );
 			}
 			await this.circulatingRepository.createAll( circulating );
