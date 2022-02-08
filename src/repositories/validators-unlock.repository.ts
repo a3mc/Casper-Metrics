@@ -4,10 +4,10 @@ import { MetricsDbDataSource } from '../datasources';
 import { ValidatorsUnlock } from '../models';
 
 export class ValidatorsUnlockRepository extends DefaultCrudRepository<ValidatorsUnlock,
-    typeof ValidatorsUnlock.prototype.id> {
-    constructor(
-        @inject( 'datasources.metricsDB' ) dataSource: MetricsDbDataSource,
-    ) {
-        super( ValidatorsUnlock, dataSource );
-    }
+	typeof ValidatorsUnlock.prototype.id> {
+	constructor(
+		@inject( 'datasources.metricsDB' ) dataSource: MetricsDbDataSource,
+	) {
+		super( ValidatorsUnlock, dataSource );
+	}
 }

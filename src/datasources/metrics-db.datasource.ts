@@ -1,23 +1,24 @@
 import { inject, lifeCycleObserver, LifeCycleObserver } from '@loopback/core';
 import { juggler } from '@loopback/repository';
 import dotenv from 'dotenv';
+
 dotenv.config();
 
-console.log(process.env.DATABASE)
+console.log( process.env.DATABASE );
 
 const config = {
-    name: 'metricsDB',
-    connector: 'mysql',
-    url: '',
-    host: process.env.MYSQL_HOST,
-    port: process.env.MYSQL_PORT,
-    user: process.env.MYSQL_USER,
-    password: process.env.MYSQL_PASSWORD,
-    database: process.env.DATABASE,
-    supportBigNumbers: true,
-    connectTimeout: 120000,
-    acquireTimeout: 120000,
-    connectionLimit: process.env.MYSQL_CONNECTION_LIMIT,
+	name: 'metricsDB',
+	connector: 'mysql',
+	url: '',
+	host: process.env.MYSQL_HOST,
+	port: process.env.MYSQL_PORT,
+	user: process.env.MYSQL_USER,
+	password: process.env.MYSQL_PASSWORD,
+	database: process.env.DATABASE,
+	supportBigNumbers: true,
+	connectTimeout: 120000,
+	acquireTimeout: 120000,
+	connectionLimit: process.env.MYSQL_CONNECTION_LIMIT,
 };
 
 // Observe application's life cycle to disconnect the datasource when
@@ -26,14 +27,14 @@ const config = {
 // Learn more at https://loopback.io/doc/en/lb4/Life-cycle.html
 @lifeCycleObserver( 'datasource' )
 export class MetricsDbDataSource extends juggler.DataSource
-    implements LifeCycleObserver {
-    static dataSourceName = 'metricsDB';
-    static readonly defaultConfig = config;
+	implements LifeCycleObserver {
+	static dataSourceName = 'metricsDB';
+	static readonly defaultConfig = config;
 
-    constructor(
-        @inject( 'datasources.config.metricsDB', { optional: true } )
-            dsConfig: object = config,
-    ) {
-        super( dsConfig );
-    }
+	constructor(
+		@inject( 'datasources.config.metricsDB', { optional: true } )
+			dsConfig: object = config,
+	) {
+		super( dsConfig );
+	}
 }

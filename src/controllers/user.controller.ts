@@ -1,20 +1,20 @@
+import { authenticate, AuthenticationBindings } from '@loopback/authentication';
+import { inject } from '@loopback/core';
 import { repository } from '@loopback/repository';
 import { get, oas, OperationVisibility, param, post, requestBody, response } from '@loopback/rest';
+import { UserProfile } from '@loopback/security';
+import * as crypto from 'crypto';
+import moment from 'moment';
+import * as nodemailer from 'nodemailer';
+import { IncorrectData, NotAllowed, NotFound } from '../errors/errors';
+import { AdminLogServiceBindings, PasswordHasherBindings, TokenServiceBindings, UserServiceBindings } from '../keys';
+import { logger } from '../logger';
 import { User } from '../models';
 import { UserRepository } from '../repositories';
-import { JWTService } from '../services/jwt.service';
-import { inject } from '@loopback/core';
-import { AdminLogServiceBindings, PasswordHasherBindings, TokenServiceBindings, UserServiceBindings } from '../keys';
-import { MyUserService } from '../services/user.service';
-import { BcryptHasher } from '../services/hash.password';
-import { IncorrectData, NotAllowed, NotFound } from '../errors/errors';
-import { authenticate, AuthenticationBindings } from '@loopback/authentication';
-import { UserProfile } from '@loopback/security';
 import { AdminLogService } from '../services';
-import moment from 'moment';
-import * as crypto from 'crypto';
-import * as nodemailer from 'nodemailer';
-import { logger } from '../logger';
+import { BcryptHasher } from '../services/hash.password';
+import { JWTService } from '../services/jwt.service';
+import { MyUserService } from '../services/user.service';
 
 @oas.visibility( OperationVisibility.UNDOCUMENTED )
 export class UserController {
@@ -95,23 +95,22 @@ export class UserController {
 			process.env.ADMIN_FIRST_NAME &&
 			process.env.ADMIN_LAST_NAME &&
 			process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD === credentials.password &&
-			! ( await this.userRepository.count() ).count
+			!( await this.userRepository.count() ).count
 		) {
 			logger.info( 'Creating invite link for the first admin:' + credentials.email );
 			await this.invite( {
 				firstName: process.env.ADMIN_FIRST_NAME,
 				lastName: process.env.ADMIN_LAST_NAME,
 				email: credentials.email,
-				password: credentials.password
+				password: credentials.password,
 			} );
 
 			const adminUser = await this.userRepository.findOne( {
-				where: { email: credentials.email }
+				where: { email: credentials.email },
 			} );
 
 			return { activate: adminUser?.inviteToken };
 		}
-
 
 		const user = await this.userService.verifyCredentials( credentials );
 		const userProfile = await this.userService.convertToUserProfile( user );

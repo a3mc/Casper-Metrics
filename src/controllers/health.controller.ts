@@ -1,6 +1,5 @@
 import { repository } from '@loopback/repository';
-import { get, getModelSchemaRef, response } from '@loopback/rest';
-import { Peers } from '../models';
+import { get, response } from '@loopback/rest';
 import { PeersRepository } from '../repositories';
 
 export class HealthController {
@@ -13,5 +12,6 @@ export class HealthController {
 	@get( '/health' )
 	@response( 200 )
 	async health(): Promise<string> {
-		return 'Ok';
+		return 'I\'m fine!';
 	}
+}

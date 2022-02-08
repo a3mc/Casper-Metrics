@@ -1,10 +1,10 @@
 export interface RequiredPermissions {
-    required?: string;
+	required?: string;
 }
 
 export interface MyUserProfile {
-    id: number;
-    email?: string;
-    permissions: string;
+	id: number;
+	email?: string;
+	permissions: string;
 }
 

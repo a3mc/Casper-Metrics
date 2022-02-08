@@ -1,11 +1,12 @@
-import { injectable, /* inject, */ BindingScope } from '@loopback/core';
+import { BindingScope, injectable } from '@loopback/core';
 import { Filter, repository } from '@loopback/repository';
-import { EraRepository, PriceRepository } from '../repositories';
-import moment from 'moment';
-import dotenv from 'dotenv';
 import axios from 'axios';
-import { Era } from '../models';
+import dotenv from 'dotenv';
+import moment from 'moment';
 import { logger } from '../logger';
+import { Era } from '../models';
+import { EraRepository, PriceRepository } from '../repositories';
+
 dotenv.config();
 
 @injectable( { scope: BindingScope.TRANSIENT } )
@@ -33,7 +34,7 @@ export class PriceService {
 			const eraPrices = await this.priceRepository.find( {
 				where: {
 					date: {
-						gt: moment().add( -1, 'hours' ).format()
+						gt: moment().add( -1, 'hours' ).format(),
 					},
 				},
 			} );
@@ -53,16 +54,16 @@ export class PriceService {
 			'https://min-api.cryptocompare.com/data/v2/histohour?fsym=CSPR&tsym=USD' +
 			'&limit=' + this._requestsLimit +
 			'&toTs=' + toTs +
-			'&api_key=' + process.env.CC_API_KEY
+			'&api_key=' + process.env.CC_API_KEY,
 		);
 
 		if ( result && result.status === 200 && result.data?.Data?.Data?.length ) {
 			for ( const hour of result.data.Data.Data ) {
 				const existingRecord = await this.priceRepository.find( {
-					where: { date: moment( hour.time * 1000 ).format() }
+					where: { date: moment( hour.time * 1000 ).format() },
 				} );
 
-				if ( ! existingRecord.length ) {
+				if ( !existingRecord.length ) {
 					await this.priceRepository.create( {
 						date: moment( hour.time * 1000 ).format(),
 						low: hour.low,

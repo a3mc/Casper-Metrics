@@ -38,7 +38,6 @@ export class AdminLog extends Entity {
 	} )
 	action: string;
 
-
 	constructor( data?: Partial<AdminLog> ) {
 		super( data );
 	}
