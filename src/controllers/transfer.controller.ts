@@ -46,6 +46,7 @@ export class TransferController {
 		@param.query.number( 'perPage' ) perPage?: number,
 		@param.query.number( 'page' ) page?: number,
 		@param.query.number( 'eraId' ) eraId?: number,
+		@param.query.string( 'deployHash' ) deployHash?: string,
 	): Promise<any> {
 		let filter: any = {
 			where: {
@@ -80,6 +81,13 @@ export class TransferController {
 			filter = {
 				where: {
 					eraId: eraId,
+				},
+			};
+		}
+		if ( deployHash ) {
+			filter = {
+				where: {
+					deployHash: deployHash,
 				},
 			};
 		}
