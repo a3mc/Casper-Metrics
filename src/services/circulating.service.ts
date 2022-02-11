@@ -2,7 +2,7 @@ import { BindingScope, injectable } from '@loopback/core';
 import { repository } from '@loopback/repository';
 import moment from 'moment';
 import { networks } from '../configs/networks';
-import { Circulating, Era, ValidatorsUnlock } from '../models';
+import { Circulating, Era, Transfer, ValidatorsUnlock } from '../models';
 import { BlockRepository, CirculatingRepository, EraRepository, TransferRepository, ValidatorsUnlockRepository } from '../repositories';
 
 @injectable( { scope: BindingScope.TRANSIENT } )
@@ -33,16 +33,20 @@ export class CirculatingService {
 	public async updateEraCirculatingSupply( era: Era ): Promise<void> {
 		let circulatingSupply = BigInt( 0 );
 
-		const approvedUnlocks = await this.circulatingRepository.find( {
+		const approvedUnlocks = await this.transferRepository.find( {
 			where: {
-				timestamp: {
-					lte: era.end || moment( era.start ).add( 2, 'hours' ).toISOString(),
+				eraId: {
+					lte: era.id,
 				},
+				or: [
+					{ approved : true },
+					{ allOutbound: true },
+				],
 			},
 		} );
 
-		circulatingSupply += approvedUnlocks.reduce( ( a: bigint, b: Circulating ) => {
-			return a + BigInt( b.unlock );
+		circulatingSupply += approvedUnlocks.reduce( ( a: bigint, b: Transfer ) => {
+			return a + BigInt( b.amount );
 		}, BigInt( 0 ) );
 
 		const unlockedValidators = await this.validatorsUnlockRepository.find( {

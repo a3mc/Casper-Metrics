@@ -247,31 +247,6 @@ export class TransferController {
 			}
 		}
 
-		const approvedTransfers = await this.transferRepository.find( {
-			where: {
-				approved: true,
-			},
-			fields: ['timestamp', 'amount', 'deployHash', 'blockHeight'],
-		} ).catch();
-
-		await this.circulatingRepository.deleteAll( {
-			deployHash: { neq: '' },
-		} );
-
-		if ( approvedTransfers ) {
-			let circulating = [];
-			for ( const transfer of approvedTransfers ) {
-				circulating.push( {
-					timestamp: transfer.timestamp,
-					unlock: transfer.amount,
-					deployHash: transfer.deployHash,
-					blockHeight: transfer.blockHeight,
-					eraId: transfer.eraId,
-				} );
-			}
-			await this.circulatingRepository.createAll( circulating );
-		}
-
 		await this.circulatingService.calculateCirculatingSupply();
 	}
 }
