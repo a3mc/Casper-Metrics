@@ -71,6 +71,12 @@ export class User extends Entity {
 	} )
 	faSecret?: string;
 
+	@property( {
+		type: 'string',
+		required: false,
+	} )
+	test?: string;
+
 	constructor( data?: Partial<User> ) {
 		super( data );
 	}
