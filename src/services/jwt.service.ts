@@ -1,11 +1,11 @@
+import { repository } from '@loopback/repository';
 import { HttpErrors } from '@loopback/rest';
 import { securityId, UserProfile } from '@loopback/security';
 import { promisify } from 'util';
-import { TokenServiceConstants } from '../keys';
-import TOKEN_EXPIRES_IN_VALUE = TokenServiceConstants.TOKEN_EXPIRES_IN_VALUE;
-import { repository } from '@loopback/repository';
-import { UserRepository } from '../repositories';
 import { NotAllowed, NotFound } from '../errors/errors';
+import { TokenServiceConstants } from '../keys';
+import { UserRepository } from '../repositories';
+import TOKEN_EXPIRES_IN_VALUE = TokenServiceConstants.TOKEN_EXPIRES_IN_VALUE;
 
 const jwt = require( 'jsonwebtoken' );
 const signAsync = promisify( jwt.sign );
@@ -14,7 +14,6 @@ const verifyAsync = promisify( jwt.verify );
 export class JWTService {
 	public readonly jwtSecret: string = 'FIXME!TEST';
 	public readonly expiresSecret: string = TOKEN_EXPIRES_IN_VALUE;
-
 
 	constructor(
 		@repository( UserRepository )

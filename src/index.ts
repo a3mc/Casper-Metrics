@@ -1,7 +1,8 @@
-import { ApplicationConfig, CasperMetricsApplication } from './application';
-export * from './application';
 import dotenv from 'dotenv';
+import { ApplicationConfig, CasperMetricsApplication } from './application';
 import { logger } from './logger';
+
+export * from './application';
 dotenv.config();
 
 export async function main( options: ApplicationConfig = {} ) {
@@ -19,7 +20,7 @@ if ( require.main === module ) {
 	// Run the application
 
 	if ( process.env.PUBLIC_API_PORT ) {
-		console.log('has public', process.env.PUBLIC_API_PORT)
+		console.log( 'has public', process.env.PUBLIC_API_PORT );
 		const config = {
 			shutdown: {
 				gracePeriod: 5000,

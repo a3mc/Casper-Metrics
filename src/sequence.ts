@@ -1,4 +1,11 @@
 import {
+	AuthenticateFn,
+	AUTHENTICATION_STRATEGY_NOT_FOUND,
+	AuthenticationBindings,
+	USER_PROFILE_NOT_FOUND,
+} from '@loopback/authentication';
+import { inject } from '@loopback/core';
+import {
 	FindRoute,
 	InvokeMethod,
 	InvokeMiddleware,
@@ -7,20 +14,10 @@ import {
 	RequestContext,
 	Send,
 	SequenceActions,
-	SequenceHandler
+	SequenceHandler,
 } from '@loopback/rest';
-import { inject } from "@loopback/core";
-import {
-	AuthenticateFn,
-	AUTHENTICATION_STRATEGY_NOT_FOUND,
-	AuthenticationBindings,
-	USER_PROFILE_NOT_FOUND
-} from '@loopback/authentication';
 
 export class MySequence implements SequenceHandler {
-
-	@inject( SequenceActions.INVOKE_MIDDLEWARE, { optional: true } )
-	protected invokeMiddleware: InvokeMiddleware = () => false;
 
 	constructor(
 		@inject( SequenceActions.FIND_ROUTE ) protected findRoute: FindRoute,
@@ -29,7 +26,7 @@ export class MySequence implements SequenceHandler {
 		@inject( SequenceActions.SEND ) public send: Send,
 		@inject( SequenceActions.REJECT ) public reject: Reject,
 		@inject( AuthenticationBindings.AUTH_ACTION )
-		protected authenticateRequest: AuthenticateFn
+		protected authenticateRequest: AuthenticateFn,
 	) {
 	}
 
@@ -38,8 +35,8 @@ export class MySequence implements SequenceHandler {
 			// First we try to find a matching route in the api
 			const { request, response } = context;
 			const finished = await this.invokeMiddleware( context );
-			if( request.method == 'OPTIONS' ) {
-				response.status( 200 )
+			if ( request.method == 'OPTIONS' ) {
+				response.status( 200 );
 				this.send( response, 'ok' );
 			} else {
 				const route = this.findRoute( request );
@@ -49,7 +46,7 @@ export class MySequence implements SequenceHandler {
 				this.send( response, result );
 			}
 		} catch ( err ) {
-			if(
+			if (
 				err.code === AUTHENTICATION_STRATEGY_NOT_FOUND ||
 				err.code === USER_PROFILE_NOT_FOUND
 			) {
@@ -59,6 +56,9 @@ export class MySequence implements SequenceHandler {
 			this.reject( context, err );
 		}
 	}
+
+	@inject( SequenceActions.INVOKE_MIDDLEWARE, { optional: true } )
+	protected invokeMiddleware: InvokeMiddleware = () => false;
 }
 
 

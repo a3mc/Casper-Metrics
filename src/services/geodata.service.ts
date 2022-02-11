@@ -1,17 +1,18 @@
-import { injectable, /* inject, */ BindingScope } from '@loopback/core';
+import { BindingScope, injectable } from '@loopback/core';
 import { repository } from '@loopback/repository';
-import { PeersRepository } from '../repositories';
+import axios from 'axios';
+import dotenv from 'dotenv';
 import moment from 'moment';
 import { logger } from '../logger';
 import { geodata } from '../mocks/geodata.mock';
-import dotenv from 'dotenv';
-import axios from 'axios';
+import { PeersRepository } from '../repositories';
+
 dotenv.config();
 
 @injectable( { scope: BindingScope.TRANSIENT } )
 export class GeodataService {
 	constructor(
-		@repository( PeersRepository ) public peersRepository: PeersRepository
+		@repository( PeersRepository ) public peersRepository: PeersRepository,
 	) {
 	}
 
@@ -19,8 +20,8 @@ export class GeodataService {
 		const lastRecord = await this.peersRepository.find( {
 			where: {
 				added: {
-					gt: moment().add( 4, 'hours' ).format()
-				}
+					gt: moment().add( 4, 'hours' ).format(),
+				},
 			},
 			limit: 1,
 		} );
@@ -36,7 +37,7 @@ export class GeodataService {
 		if ( !process.env.GEODATA ) {
 			logger.debug( 'GEODATA path not set, using mock' );
 			const existingRecords = await this.peersRepository.findOne();
-			if ( ! existingRecords ) {
+			if ( !existingRecords ) {
 				await this._update( geodata );
 			}
 		} else {

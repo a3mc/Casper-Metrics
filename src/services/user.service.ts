@@ -68,11 +68,11 @@ export class MyUserService implements UserService<User, Credentials> {
 	}
 
 	generate2FASecret( email: string ): any {
-		const result =  twofactor.generateSecret(
+		const result = twofactor.generateSecret(
 			{
-				name: "Casper Metrics",
-				account: email
-			}
+				name: 'Casper Metrics',
+				account: email,
+			},
 		);
 		delete result.qr;
 		return result;

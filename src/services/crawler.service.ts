@@ -1,23 +1,18 @@
 import { BindingScope, injectable, service } from '@loopback/core';
-import { logger } from '../logger';
-import { CasperServiceByJsonRPC } from 'casper-js-sdk';
-import { BlockStakeInfo } from '../controllers';
-import { Block, Era, Transfer } from '../models';
-import { networks } from '../configs/networks';
 import { repository } from '@loopback/repository';
-import {
-	BlockRepository,
-	EraRepository,
-	KnownAccountRepository,
-	TransferRepository,
-} from '../repositories';
-import Timeout from 'await-timeout';
 import { Client, HTTPTransport, RequestManager } from '@open-rpc/client-js';
-import { RedisService } from './redis.service';
-import moment from 'moment';
-import { CirculatingService } from './circulating.service';
-import dotenv from 'dotenv';
 import * as async from 'async';
+import Timeout from 'await-timeout';
+import { CasperServiceByJsonRPC } from 'casper-js-sdk';
+import dotenv from 'dotenv';
+import moment from 'moment';
+import { networks } from '../configs/networks';
+import { BlockStakeInfo } from '../controllers';
+import { logger } from '../logger';
+import { Block, Era, Transfer } from '../models';
+import { BlockRepository, EraRepository, KnownAccountRepository, TransferRepository } from '../repositories';
+import { CirculatingService } from './circulating.service';
+import { RedisService } from './redis.service';
 
 dotenv.config();
 
@@ -136,7 +131,6 @@ export class CrawlerService {
 			nextEraValidatorsWeights = this._denominate( await this._getValidatorsWeights(
 				blockInfo.block.header.era_end.next_era_validator_weights,
 			) );
-
 
 			const service = await this._getCasperService();
 
@@ -637,7 +631,7 @@ export class CrawlerService {
 					await this._banService( service );
 					throw new Error();
 				} );
-			;
+
 
 			for ( const executionResult of deployResult.execution_results ) {
 				if (

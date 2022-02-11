@@ -4,10 +4,10 @@ import { MetricsDbDataSource } from '../datasources';
 import { Block } from '../models';
 
 export class BlockRepository extends DefaultCrudRepository<Block,
-    typeof Block.prototype.id> {
-    constructor(
-        @inject( 'datasources.metricsDB' ) dataSource: MetricsDbDataSource,
-    ) {
-        super( Block, dataSource );
-    }
+	typeof Block.prototype.id> {
+	constructor(
+		@inject( 'datasources.metricsDB' ) dataSource: MetricsDbDataSource,
+	) {
+		super( Block, dataSource );
+	}
 }
