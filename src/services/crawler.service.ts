@@ -214,7 +214,6 @@ export class CrawlerService {
 		}
 
 		let blockCount = 0;
-		let queue = [];
 
 		for ( const block of blocks ) {
 			await this._updateBlockTransfers( block );
@@ -424,9 +423,14 @@ export class CrawlerService {
 
 	private async _createNewEra( prevBlock: Block, block: Block ): Promise<void> {
 		if ( !await this.eraRepository.exists( block.eraId ) ) {
+
+			const prevEra = await this.eraRepository.findById( block.eraId, {
+				fields: ['circulatingSupply']
+			} );
+
 			await this.eraRepository.create( {
 				id: block.eraId,
-				circulatingSupply: BigInt( block.circulatingSupply ),
+				circulatingSupply: BigInt( prevEra.circulatingSupply ),
 				startBlock: block.blockHeight,
 				start: block.timestamp,
 				validatorsWeights: prevBlock.nextEraValidatorsWeights,
@@ -446,9 +450,6 @@ export class CrawlerService {
 				throw new Error( e );
 			} );
 		}
-		await this.circulatingService.updateEraCirculatingSupply(
-			await this.eraRepository.findById( block.eraId ),
-		);
 	}
 
 	private async _updateCompletedEra( switchBlock: Block, eraBlocks: Block[] ): Promise<void> {
@@ -479,7 +480,7 @@ export class CrawlerService {
 			switchBlock.eraId,
 			{
 				totalSupply: switchBlock.totalSupply,
-				circulatingSupply: BigInt( switchBlock.circulatingSupply ),
+				circulatingSupply: BigInt( 0 ),
 				endBlock: switchBlock.blockHeight,
 				end: moment( switchBlock.timestamp ).add( -1, 'ms' ).format(),
 				stakedDiffThisEra: stakedInfo.amount,
