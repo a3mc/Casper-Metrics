@@ -1,6 +1,6 @@
 {
     "name": "casper-metrics-api",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "description": "Public API for general Casper metrics",
     "keywords": [
         "casper"
@@ -12,28 +12,18 @@
     },
     "scripts": {
         "build": "lb-tsc",
-        "start:api:prod": "pm2 start ecosystem.config.js --only 'mainnet-prod,testnet-prod'",
-        "start:api:dev": "pm2 start ecosystem.config.js --only 'mainnet-dev,testnet-dev'",
-        "start:dev:main": "pm2 start ecosystem.config.js --only 'mainnet-dev,mainnet-dev-crawler-worker'",
-        "lint": "npm run eslint && npm run prettier:check",
-        "lint:fix": "npm run eslint:fix && npm run prettier:fix",
-        "prettier:cli": "lb-prettier \"**/*.ts\" \"**/*.js\"",
-        "prettier:check": "npm run prettier:cli -- -l",
-        "prettier:fix": "npm run prettier:cli -- --write",
+        "start": "pm2 start ecosystem.config.js",
+        "start:api": "pm2 start ecosystem.config.js --only 'metrics-api'",
+        "start:crawler": "pm2 start ecosystem.config.js --only 'crawler-worker'",
         "eslint": "lb-eslint --report-unused-disable-directives .",
         "eslint:fix": "npm run eslint -- --fix",
         "pretest": "npm run rebuild",
         "pretest:prod": "npm run rebuild:prod",
         "test": "lb-mocha --allow-console-logs \"dist/__tests__\"",
         "test:prod": "lb-mocha --allow-console-logs dist/__tests__/**/*.js",
-        "docker:build": "docker build -t casper-metrics .",
-        "docker:run": "docker run -p 3000:3000 -d casper-metrics",
         "premigrate": "npm run build",
         "migrate": "node ./dist/migrate",
-        "migrate:erase:prod:main": "DATABASE=mainnet npm run migrate -- --rebuild && redis-cli -n 0 flushdb",
-        "migrate:erase:prod:test": "DATABASE=testnet npm run migrate -- --rebuild && redis-cli -n 1 flushdb",
-        "migrate:erase:dev:main": "DATABASE=devmainnet npm run migrate -- --rebuild && redis-cli -n 2 flushdb",
-        "migrate:erase:dev:test": "DATABASE=devtestnet npm run migrate -- --rebuild && redis-cli -n 3 flushdb",
+        "migrate:erase": "npm run migrate -- --rebuild && redis-cli -n 0 flushdb",
         "preopenapi-spec": "npm run build",
         "openapi-spec": "node ./dist/openapi-spec",
         "prestart": "npm run rebuild",
@@ -43,10 +33,10 @@
     },
     "repository": {
         "type": "git",
-        "url": ""
+        "url": "https://github.com/a3mc/Casper-Metrics"
     },
-    "author": "",
-    "license": "",
+    "author": "ART3MIS.CLOUD",
+    "license": "MIT",
     "files": [
         "README.md",
         "dist",

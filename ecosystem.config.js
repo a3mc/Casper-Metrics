@@ -2,62 +2,18 @@ module.exports = {
     apps: [
         {
             script: './dist/index.js',
-            name: 'mainnet-prod',
+            name: 'metrics-api',
             max_memory_restart: '8G',
             exec_mode: 'fork',
             watch: false,
             env: {
                 'NODE_ENV': 'production',
                 'PUBLIC_API_PORT': '3000',
-                'DATABASE': 'mainnet',
-                'NETWORK': 'mainnet',
                 'REDIS_DB': 0
             }
         },
         {
-            script: './dist/index.js',
-            name: 'testnet-prod',
-            max_memory_restart: '8G',
-            exec_mode: 'fork',
-            watch: false,
-            env: {
-                'NODE_ENV': 'production',
-                'PUBLIC_API_PORT': '3001',
-                'DATABASE': 'testnet',
-                'NETWORK': 'testnet',
-                'REDIS_DB': 1
-            }
-        },
-        {
-            script: './dist/index.js',
-            name: 'mainnet-dev',
-            max_memory_restart: '8G',
-            exec_mode: 'fork',
-            watch: false,
-            env: {
-                'NODE_ENV': 'production',
-                'PUBLIC_API_PORT': '3010',
-                'DATABASE': 'devmainnet',
-                'NETWORK': 'mainnet',
-                'REDIS_DB': 2
-            }
-        },
-        {
-            script: './dist/index.js',
-            name: 'testnet-dev',
-            max_memory_restart: '8G',
-            exec_mode: 'fork',
-            watch: false,
-            env: {
-                'NODE_ENV': 'production',
-                'PUBLIC_API_PORT': '3011',
-                'DATABASE': 'devtestnet',
-                'NETWORK': 'testnet',
-                'REDIS_DB': 3
-            }
-        },
-        {
-            name: 'mainnet-prod-crawler-worker',
+            name: 'crawler-worker',
             script: './dist/workers/crawler.worker.js',
             instances: 4,
             exec_mode: 'cluster',
@@ -65,21 +21,7 @@ module.exports = {
             watch: false,
             env: {
                 'NODE_ENV': 'production',
-                'DATABASE': 'mainnet',
                 'REDIS_DB': 0
-            }
-        },
-        {
-            name: 'mainnet-dev-crawler-worker',
-            script: './dist/workers/crawler.worker.js',
-            instances: 4,
-            exec_mode: 'cluster',
-            max_memory_restart: '8G',
-            watch: false,
-            env: {
-                'NODE_ENV': 'production',
-                'DATABASE': 'devmainnet',
-                'REDIS_DB': 2
             }
         }
     ],
