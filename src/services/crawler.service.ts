@@ -93,7 +93,7 @@ export class CrawlerService {
 		const blockInfo: any = await service.node.getBlockInfoByHeight( blockHeight )
 			.catch( async () => {
 				await this._banService( service );
-				throw new Error( 'Cant get block info in createBLock' );
+				throw new Error( 'Cant get block info in createBlock' );
 			} );
 
 		const stateRootHash: string = blockInfo.block.header.state_root_hash;
@@ -424,13 +424,9 @@ export class CrawlerService {
 	private async _createNewEra( prevBlock: Block, block: Block ): Promise<void> {
 		if ( !await this.eraRepository.exists( block.eraId ) ) {
 
-			const prevEra = await this.eraRepository.findById( block.eraId, {
-				fields: ['circulatingSupply']
-			} );
-
 			await this.eraRepository.create( {
 				id: block.eraId,
-				circulatingSupply: BigInt( prevEra.circulatingSupply ),
+				circulatingSupply: BigInt( 0 ),
 				startBlock: block.blockHeight,
 				start: block.timestamp,
 				validatorsWeights: prevBlock.nextEraValidatorsWeights,
@@ -447,8 +443,12 @@ export class CrawlerService {
 				transfersCount: 0,
 			} ).catch( e => {
 				logger.error( e );
-				throw new Error( e );
+				throw new Error( 'Cannot create new era ' + block.eraId );
 			} );
+
+			await this.circulatingService.updateEraCirculatingSupply(
+				await this.eraRepository.findById( block.eraId ),
+			);
 		}
 	}
 
