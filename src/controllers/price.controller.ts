@@ -15,7 +15,7 @@ export class PriceController {
 
 	@get( '/prices' )
 	@response( 200, {
-		description: 'Last prices',
+		description: 'Prices in a given range or the whole history when called without params.',
 		content: {
 			'application/json': {
 				schema: {
@@ -27,8 +27,8 @@ export class PriceController {
 	} )
 	async prices(): Promise<Price[]> {
 		const filter = {
-			limit: 14 * 24, // Two weeks by default
-			order: ['id DESC'],
+			skip: 3402, // Beginning of market data available
+			limit: 24 * 365 * 5, // Up to 5 years
 		};
 		return this.priceRepository.find( filter );
 	}
