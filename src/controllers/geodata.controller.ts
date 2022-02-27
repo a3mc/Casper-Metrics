@@ -10,7 +10,7 @@ export class GeodataController {
 	) {
 	}
 
-	@get( '/geodata/validators' )
+	@get( '/validators' )
 	@response( 200, {
 		description: 'Active validators',
 		content: {
@@ -35,7 +35,7 @@ export class GeodataController {
 					mission: 'VALIDATOR',
 					version: lastVersionResult[0].version,
 				},
-				fields: ['city', 'loc'],
+				fields: ['ip', 'performance', 'public_key', 'api_version', 'org', 'loc', 'city', 'region', 'country', 'postal', 'timezone']
 			} );
 		}
 		return [];

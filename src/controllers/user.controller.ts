@@ -329,7 +329,7 @@ export class UserController {
 			} );
 
 			await transporter.sendMail( {
-				from: '"Casper Metrics" <' + process.env.SMTP_USER + '>',
+				from: '"Casper Metrics" <' + process.env.FROM_EMAIL + '>',
 				to: user.email,
 				subject: mailSubject,
 				text: mailText,

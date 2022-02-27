@@ -49,7 +49,7 @@ export class BlockController {
 				block.circulatingSupply = era.circulatingSupply;
 			}
 
-			if ( !blockHeight && block.blockHeight ) {
+			if ( block.blockHeight ) {
 				const prevBlock = await this.blocksRepository.findOne( {
 					where: { blockHeight: block.blockHeight - 1 },
 					fields: ['timestamp'],
