@@ -1,6 +1,8 @@
 import { repository } from '@loopback/repository';
 import { get, getModelSchemaRef, response } from '@loopback/rest';
+import axios from 'axios';
 import CoinGecko from 'coingecko-api';
+import { logger } from '../logger';
 import { Price } from '../models';
 import { PriceRepository } from '../repositories';
 
@@ -45,10 +47,19 @@ export class PriceController {
 		},
 	} )
 	async last(): Promise<Number> {
+		logger.debug( 'Call to Coingecko ');
 		const result = await CoinGeckoClient.simple.price( {
 			ids: 'casper-network',
 			vs_currencies: 'usd',
-		} );
+		} ).catch(
+			() => {
+				logger.warn( 'Error from Coingecko' );
+			}
+		);
+
+		if ( !result || !result.data['casper-network'] || !result.data['casper-network'].usd ) {
+			return 0;
+		}
 
 		return result?.data['casper-network']?.usd;
 	}
