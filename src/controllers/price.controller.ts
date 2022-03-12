@@ -47,7 +47,6 @@ export class PriceController {
 		},
 	} )
 	async last(): Promise<Number> {
-		logger.debug( 'Call to Coingecko ');
 		const result = await CoinGeckoClient.simple.price( {
 			ids: 'casper-network',
 			vs_currencies: 'usd',
