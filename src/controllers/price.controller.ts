@@ -1,5 +1,5 @@
 import { repository } from '@loopback/repository';
-import { get, getModelSchemaRef, response } from '@loopback/rest';
+import { get, getModelSchemaRef, oas, OperationVisibility, response } from '@loopback/rest';
 import axios from 'axios';
 import CoinGecko from 'coingecko-api';
 import { logger } from '../logger';
@@ -15,6 +15,7 @@ export class PriceController {
 	) {
 	}
 
+	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@get( '/prices' )
 	@response( 200, {
 		description: 'Prices in a given range or the whole history when called without params.',
