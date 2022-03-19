@@ -55,7 +55,9 @@ export class PriceService {
 			'&limit=' + this._requestsLimit +
 			'&toTs=' + toTs +
 			'&api_key=' + process.env.CC_API_KEY,
-		);
+		).catch( () => {
+			logger.warn( 'Error fetching price data. Failed to connect' );
+		} );
 
 		if ( result && result.status === 200 && result.data?.Data?.Data?.length ) {
 			for ( const hour of result.data.Data.Data ) {

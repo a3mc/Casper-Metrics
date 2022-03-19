@@ -27,7 +27,7 @@ export class GeodataService {
 		} );
 
 		if ( !lastRecord.length ) {
-			logger.debug( 'Need to check geodata peers info for an update.' );
+			logger.debug( 'Need to check validators info for an update.' );
 			await this.updateGeoData();
 		}
 	}
@@ -42,8 +42,10 @@ export class GeodataService {
 			}
 		} else {
 			logger.debug( 'Updating from geodata url' );
-			const result = await axios.get( process.env.GEODATA );
-			if ( result.status === 200 ) {
+			const result = await axios.get( process.env.GEODATA ).catch( () => {
+				logger.warn( 'Error fetching validators data. Failed to connect' );
+			} );
+			if ( result && result.status === 200 ) {
 				const data = result.data;
 				const existingRecords = await this.peersRepository.find( {
 					where: { version: data.version },

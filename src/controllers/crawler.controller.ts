@@ -94,10 +94,14 @@ export class CrawlerController {
 			return;
 		}
 		logger.debug( 'Checking if geodata needs to be updated' );
-		await this.geodataService.checkForUpdate();
+		await this.geodataService.checkForUpdate().catch( () => {
+			logger.warn( 'Updating validators data failed' );
+		} );
 
 		logger.debug( 'Checking if prices need to be updated' );
-		await this.priceService.checkForUpdate();
+		await this.priceService.checkForUpdate().catch( () => {
+			logger.warn( 'Updating historical price data failed' );
+		} );;
 
 		logger.info( 'Start crawling cycle.' );
 		clearInterval( this.meterInterval );
