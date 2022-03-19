@@ -95,12 +95,12 @@ export class CrawlerController {
 		}
 		logger.debug( 'Checking if geodata needs to be updated' );
 		await this.geodataService.checkForUpdate().catch( () => {
-			logger.warn( 'Updating validators data failed' );
+			logger.error( 'Updating validators data failed' );
 		} );
 
 		logger.debug( 'Checking if prices need to be updated' );
 		await this.priceService.checkForUpdate().catch( () => {
-			logger.warn( 'Updating historical price data failed' );
+			logger.error( 'Updating historical price data failed' );
 		} );;
 
 		logger.info( 'Start crawling cycle.' );
