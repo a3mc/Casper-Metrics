@@ -30,12 +30,13 @@ export class PriceController {
 	} )
 	async prices(): Promise<Price[]> {
 		const filter = {
-			skip: 3402, // Beginning of market data available
-			limit: 24 * 365 * 5, // Up to 5 years
+			skip: 3402, // Beginning of the available market data
+			limit: 24 * 365 * 3, // Up to 3 years in one batch
 		};
 		return this.priceRepository.find( filter );
 	}
 
+	// Cached in Nginx server to prevent too frequent requests.
 	@get( '/price' )
 	@response( 200, {
 		description: 'Last price in USDT (Coingecko)',

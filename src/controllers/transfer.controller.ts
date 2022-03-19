@@ -5,9 +5,7 @@ import { get, getModelSchemaRef, oas, OperationVisibility, param, post, response
 import { Transfer } from '../models';
 import { BlockRepository, CirculatingRepository, EraRepository, TransferRepository } from '../repositories';
 import { CirculatingService } from '../services';
-
-const { LinkedList, Queue, Stack, Graph } = require( 'dsa.js' );
-
+const { Graph } = require( 'dsa.js' );
 const clone = require( 'node-clone-js' );
 
 export class TransferController {
@@ -34,7 +32,7 @@ export class TransferController {
 			'application/json': {
 				schema: {
 					type: 'array',
-					items: getModelSchemaRef( Transfer, { includeRelations: true } ),
+					items: getModelSchemaRef( Transfer, { includeRelations: false } ),
 				},
 			},
 		},
@@ -46,7 +44,7 @@ export class TransferController {
 		@param.query.number( 'perPage' ) perPage?: number,
 		@param.query.number( 'page' ) page?: number,
 		@param.query.number( 'eraId' ) eraId?: number,
-		@param.query.string( 'deployHash' ) deployHash?: string,
+		@param.query.string( 'search' ) search?: string,
 	): Promise<any> {
 		let filter: any = {
 			where: {
@@ -84,10 +82,17 @@ export class TransferController {
 				},
 			};
 		}
-		if ( deployHash ) {
+		if ( search ) {
 			filter = {
 				where: {
-					deployHash: deployHash,
+					or: [
+						{ deployHash: search },
+						{ from: search },
+						{ fromHash: search },
+						{ to: search },
+						{ toHash: search },
+					]
+
 				},
 			};
 		}
@@ -117,7 +122,6 @@ export class TransferController {
 			totalItems: await this.transferRepository.count( filter.where ),
 			approvedSum: Number( approvedSum / BigInt( 1000000000 ) ),
 			totalSum: Number( totalSum / BigInt( 1000000000 ) ),
-			allOutbound: fromHash && allData.length ? allData[0].allOutbound : undefined,
 			data: data,
 		};
 	}
@@ -209,21 +213,8 @@ export class TransferController {
 	async approve(
 		@param.query.string( 'approvedIds' ) approvedIds?: string,
 		@param.query.string( 'declinedIds' ) declinedIds?: string,
-		@param.query.string( 'allOutboundHash' ) allOutboundHash?: string,
-		@param.query.boolean( 'allOutbound' ) allOutbound?: boolean,
 	): Promise<void> {
-		if ( allOutboundHash && allOutbound !== undefined ) {
-			const fromOutbound = await this.transferRepository.find( {
-				where: {
-					fromHash: allOutboundHash,
-				}
-			} );
 
-			for ( const transfer of fromOutbound ) {
-				transfer.allOutbound = allOutbound;
-				await this.transferRepository.updateById( transfer.id,  transfer );
-			}
-		} else {
 			if ( approvedIds ) {
 				const approved: number[] = approvedIds.split( ',' ).map(
 					id => Number( id ),
@@ -245,8 +236,5 @@ export class TransferController {
 					} );
 				}
 			}
-		}
-
-		await this.circulatingService.calculateCirculatingSupply();
 	}
 }

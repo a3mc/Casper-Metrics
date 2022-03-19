@@ -37,13 +37,6 @@ export class Transfer extends Entity {
 	approved: boolean;
 
 	@property( {
-		type: 'boolean',
-		required: false,
-		default: false,
-	} )
-	allOutbound?: boolean;
-
-	@property( {
 		type: 'number',
 		required: true,
 	} )
