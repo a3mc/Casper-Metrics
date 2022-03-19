@@ -2,6 +2,7 @@ import { BindingScope, injectable } from '@loopback/core';
 import { repository } from '@loopback/repository';
 import moment from 'moment';
 import { networks } from '../configs/networks';
+import { logger } from '../logger';
 import { Circulating, Era, Transfer, ValidatorsUnlock } from '../models';
 import { BlockRepository, CirculatingRepository, EraRepository, TransferRepository, ValidatorsUnlockRepository } from '../repositories';
 
@@ -22,12 +23,14 @@ export class CirculatingService {
 	}
 
 	public async calculateCirculatingSupply(): Promise<void> {
+		logger.debug( 'Updating Eras Circulating Supply' );
 		const eras = await this.eraRepository.find( {
 			fields: ['id', 'start', 'end', 'totalSupply'],
 		} );
 		for ( const era of eras ) {
 			await this.updateEraCirculatingSupply( era );
 		}
+		logger.debug( 'Finished updating Eras' );
 	}
 
 	public async updateEraCirculatingSupply( era: Era ): Promise<void> {
@@ -38,11 +41,9 @@ export class CirculatingService {
 				eraId: {
 					lte: era.id,
 				},
-				or: [
-					{ approved : true },
-					{ allOutbound: true },
-				],
+				approved: true,
 			},
+			fields: ['amount'],
 		} );
 
 		circulatingSupply += approvedUnlocks.reduce( ( a: bigint, b: Transfer ) => {
