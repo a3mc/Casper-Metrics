@@ -88,6 +88,7 @@ export class ValidatorsUnlockController {
 			timestamp: moment( networks.genesis_timestamp ).add( 365, 'days' ).toISOString(),
 		} );
 
-		await this.circulatingService.calculateCirculatingSupply();
+		// Async. We don't wait for it to finish here.
+		this.circulatingService.calculateCirculatingSupply();
 	}
 }

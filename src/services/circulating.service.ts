@@ -3,8 +3,8 @@ import { repository } from '@loopback/repository';
 import moment from 'moment';
 import { networks } from '../configs/networks';
 import { logger } from '../logger';
-import { Circulating, Era, Transfer, ValidatorsUnlock } from '../models';
-import { BlockRepository, CirculatingRepository, EraRepository, TransferRepository, ValidatorsUnlockRepository } from '../repositories';
+import { Era, Transfer, ValidatorsUnlock } from '../models';
+import { BlockRepository, EraRepository, ProcessingRepository, TransferRepository, ValidatorsUnlockRepository } from '../repositories';
 
 @injectable( { scope: BindingScope.TRANSIENT } )
 export class CirculatingService {
@@ -17,19 +17,48 @@ export class CirculatingService {
 		public transferRepository: TransferRepository,
 		@repository( ValidatorsUnlockRepository )
 		public validatorsUnlockRepository: ValidatorsUnlockRepository,
-		@repository( CirculatingRepository )
-		public circulatingRepository: CirculatingRepository,
+		@repository( ProcessingRepository )
+		public processingRepository: ProcessingRepository,
 	) {
 	}
 
 	public async calculateCirculatingSupply(): Promise<void> {
+		let status = await this.processingRepository.findOne( {
+			where: {
+				type: 'updating'
+			}
+		} );
+		if ( status ) {
+			status.value = true;
+			await this.processingRepository.save( status );
+		} else {
+			await this.processingRepository.create(
+				{
+					type: 'updating',
+					value: true
+				}
+			);
+		}
 		logger.debug( 'Updating Eras Circulating Supply' );
+
+
 		const eras = await this.eraRepository.find( {
 			fields: ['id', 'start', 'end', 'totalSupply'],
 		} );
 		for ( const era of eras ) {
 			await this.updateEraCirculatingSupply( era );
 		}
+
+		status = await this.processingRepository.findOne( {
+			where: {
+				type: 'updating'
+			}
+		} );
+		if ( status ) {
+			status.value = false;
+			await this.processingRepository.update( status );
+		}
+
 		logger.debug( 'Finished updating Eras' );
 	}
 

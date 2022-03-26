@@ -3,12 +3,11 @@ import * as async from 'async';
 import { MetricsDbDataSource } from '../datasources';
 import { logger } from '../logger';
 import {
-    BlockRepository,
-    CirculatingRepository,
-    EraRepository,
-    KnownAccountRepository,
-    TransferRepository,
-    ValidatorsUnlockRepository,
+	BlockRepository,
+	EraRepository,
+	KnownAccountRepository, ProcessingRepository,
+	TransferRepository,
+	ValidatorsUnlockRepository,
 } from '../repositories';
 import { CirculatingService, CrawlerService, RedisService } from '../services';
 
@@ -98,7 +97,7 @@ new CrawlerWorker(
 			new BlockRepository( dataSource ),
 			new TransferRepository( dataSource ),
 			new ValidatorsUnlockRepository( dataSource ),
-			new CirculatingRepository( dataSource ),
+			new ProcessingRepository( dataSource ,)
 		),
 	),
 	new RedisService(),

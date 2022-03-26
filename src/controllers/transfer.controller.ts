@@ -2,9 +2,12 @@ import { authenticate } from '@loopback/authentication';
 import { service } from '@loopback/core';
 import { repository } from '@loopback/repository';
 import { get, getModelSchemaRef, oas, OperationVisibility, param, post, response } from '@loopback/rest';
+import { NotAllowed } from '../errors/errors';
+import { logger } from '../logger';
 import { Transfer } from '../models';
-import { BlockRepository, CirculatingRepository, EraRepository, TransferRepository } from '../repositories';
+import { BlockRepository, EraRepository, ProcessingRepository, TransferRepository } from '../repositories';
 import { CirculatingService } from '../services';
+
 const { Graph } = require( 'dsa.js' );
 const clone = require( 'node-clone-js' );
 
@@ -12,14 +15,14 @@ export class TransferController {
 	constructor(
 		@repository( TransferRepository )
 		public transferRepository: TransferRepository,
-		@repository( CirculatingRepository )
-		public circulatingRepository: CirculatingRepository,
 		@repository( BlockRepository )
 		public blockRepository: BlockRepository,
 		@repository( EraRepository )
 		public eraRepository: EraRepository,
 		@service( CirculatingService )
 		public circulatingService: CirculatingService,
+		@repository( ProcessingRepository )
+		public processingRepository: ProcessingRepository,
 	) {
 	}
 
@@ -87,11 +90,16 @@ export class TransferController {
 				where: {
 					or: [
 						{ deployHash: search },
+						{ deployHash: search.toLowerCase() },
 						{ from: search },
+						{ from: search.toLowerCase() },
 						{ fromHash: search },
+						{ fromHash: search.toLowerCase() },
 						{ to: search },
+						{ to: search.toLowerCase() },
 						{ toHash: search },
-					]
+						{ toHash: search.toLowerCase() },
+					],
 
 				},
 			};
@@ -206,6 +214,20 @@ export class TransferController {
 
 	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
+	@post( '/transfers/calculate' )
+	@response( 200, {
+		description: 'Re-calculate circulating supply',
+	} )
+	async calculate(): Promise<void> {
+		if ( await this.status() ) {
+			throw new NotAllowed( 'Deployment in progress. Please try later.' );
+		}
+		// Async. We don't wait for it to complete here.
+		this.circulatingService.calculateCirculatingSupply();
+	}
+
+	@oas.visibility( OperationVisibility.UNDOCUMENTED )
+	@authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
 	@post( '/transfers/approve' )
 	@response( 200, {
 		description: 'Approve transactions as unlocked',
@@ -214,27 +236,48 @@ export class TransferController {
 		@param.query.string( 'approvedIds' ) approvedIds?: string,
 		@param.query.string( 'declinedIds' ) declinedIds?: string,
 	): Promise<void> {
-
-			if ( approvedIds ) {
-				const approved: number[] = approvedIds.split( ',' ).map(
-					id => Number( id ),
-				);
-				for ( const id of approved ) {
-					await this.transferRepository.updateById( id, {
-						approved: true,
-					} );
-				}
+		if ( await this.status() ) {
+			throw new NotAllowed( 'Deployment in progress. Please try later.' );
+		}
+		if ( approvedIds ) {
+			const approved: number[] = approvedIds.split( ',' ).map(
+				id => Number( id ),
+			);
+			for ( const id of approved ) {
+				await this.transferRepository.updateById( id, {
+					approved: true,
+				} );
 			}
+		}
 
-			if ( declinedIds ) {
-				const declined: number[] = declinedIds.split( ',' ).map(
-					id => Number( id ),
-				);
-				for ( const id of declined ) {
-					await this.transferRepository.updateById( id, {
-						approved: false,
-					} );
-				}
+		if ( declinedIds ) {
+			const declined: number[] = declinedIds.split( ',' ).map(
+				id => Number( id ),
+			);
+			for ( const id of declined ) {
+				await this.transferRepository.updateById( id, {
+					approved: false,
+				} );
 			}
+		}
+	}
+
+	@oas.visibility( OperationVisibility.UNDOCUMENTED )
+	@authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
+	@get( '/transfers/status' )
+	@response( 200, {
+		description: 'Processing status',
+	} )
+	async status(): Promise<boolean> {
+		const status = await this.processingRepository.findOne( {
+			where: {
+				type: 'updating',
+			},
+		} );
+
+		if ( !status ) {
+			return false;
+		}
+		return status.value;
 	}
 }
