@@ -196,7 +196,6 @@ export class UserController {
 		user.role = role;
 
 		await this.userRepository.updateById( id, user );
-		await this.adminLogService.write( 'Updated user profile of ' );
 	}
 
 	@authenticate( { strategy: 'jwt', options: { required: ['administrator'] } } )
@@ -300,9 +299,6 @@ export class UserController {
 			inviteToken: '',
 			role: role,
 		} );
-		await this.adminLogService.write(
-			user.firstName + ' ' + user.lastName + ' (' + user.email + ') has activated his account.',
-		);
 	}
 
 	private async _sendActivationLink( user: Partial<User>, token: string ): Promise<void> {

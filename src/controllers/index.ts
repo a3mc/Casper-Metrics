@@ -8,3 +8,4 @@ export * from './validators-unlock.controller';
 export * from './known-accounts.controller';
 export * from './geodata.controller';
 export * from './health.controller';
+export * from './log.controller';

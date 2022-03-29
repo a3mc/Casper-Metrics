@@ -1,10 +1,15 @@
-import { authenticate } from '@loopback/authentication';
-import { service } from '@loopback/core';
+import { authenticate, AuthenticationBindings } from '@loopback/authentication';
+import { inject, service } from '@loopback/core';
 import { repository } from '@loopback/repository';
 import { get, getModelSchemaRef, oas, OperationVisibility, param, post, response } from '@loopback/rest';
+import { UserProfile } from '@loopback/security';
+import { NotAllowed } from '../errors/errors';
+import { AdminLogServiceBindings } from '../keys';
+import { logger } from '../logger';
 import { Transfer } from '../models';
-import { BlockRepository, CirculatingRepository, EraRepository, TransferRepository } from '../repositories';
-import { CirculatingService } from '../services';
+import { BlockRepository, EraRepository, ProcessingRepository, TransferRepository } from '../repositories';
+import { AdminLogService, CirculatingService } from '../services';
+
 const { Graph } = require( 'dsa.js' );
 const clone = require( 'node-clone-js' );
 
@@ -12,14 +17,16 @@ export class TransferController {
 	constructor(
 		@repository( TransferRepository )
 		public transferRepository: TransferRepository,
-		@repository( CirculatingRepository )
-		public circulatingRepository: CirculatingRepository,
 		@repository( BlockRepository )
 		public blockRepository: BlockRepository,
 		@repository( EraRepository )
 		public eraRepository: EraRepository,
 		@service( CirculatingService )
 		public circulatingService: CirculatingService,
+		@repository( ProcessingRepository )
+		public processingRepository: ProcessingRepository,
+		@inject( AdminLogServiceBindings.ADMINLOG_SERVICE )
+		public adminLogService: AdminLogService,
 	) {
 	}
 
@@ -87,11 +94,16 @@ export class TransferController {
 				where: {
 					or: [
 						{ deployHash: search },
+						{ deployHash: search.toLowerCase() },
 						{ from: search },
+						{ from: search.toLowerCase() },
 						{ fromHash: search },
+						{ fromHash: search.toLowerCase() },
 						{ to: search },
+						{ to: search.toLowerCase() },
 						{ toHash: search },
-					]
+						{ toHash: search.toLowerCase() },
+					],
 
 				},
 			};
@@ -206,35 +218,115 @@ export class TransferController {
 
 	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
+	@post( '/transfers/calculate' )
+	@response( 200, {
+		description: 'Re-calculate circulating supply',
+	} )
+	async calculate(
+		@inject( AuthenticationBindings.CURRENT_USER ) currentUser: UserProfile,
+	): Promise<void> {
+		if ( await this.status() ) {
+			throw new NotAllowed( 'Deployment in progress. Please try later.' );
+		}
+
+		const approvedItems = await this.transferRepository.find( {
+			where: { approved: true },
+			fields: ['amount', 'deployHash']
+		} );
+
+		let approvedSum = approvedItems.reduce( ( a, b ) => {
+			return a + BigInt( b.amount );
+		}, BigInt( 0 ) );
+
+		approvedSum = BigInt( approvedSum ) / BigInt( 1000000000 );
+
+		await this.adminLogService.write(
+			currentUser,
+			'Approved ' + approvedItems.length + ' TXs: ' + approvedSum + ' CSPR',
+			approvedItems.map( tx => tx.deployHash ).join( ';' )
+		);
+
+		// Async. We don't wait for it to complete here.
+		this.circulatingService.calculateCirculatingSupply();
+	}
+
+	@oas.visibility( OperationVisibility.UNDOCUMENTED )
+	@authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
 	@post( '/transfers/approve' )
 	@response( 200, {
 		description: 'Approve transactions as unlocked',
 	} )
 	async approve(
+		@inject( AuthenticationBindings.CURRENT_USER ) currentUser: UserProfile,
 		@param.query.string( 'approvedIds' ) approvedIds?: string,
 		@param.query.string( 'declinedIds' ) declinedIds?: string,
 	): Promise<void> {
+		if ( await this.status() ) {
+			throw new NotAllowed( 'Deployment in progress. Please try later.' );
+		}
+		if ( approvedIds ) {
+			const approved: number[] = approvedIds.split( ',' ).map(
+				id => Number( id ),
+			);
+			const txs = [];
+			let sum = 0;
+			for ( const id of approved ) {
+				await this.transferRepository.updateById( id, {
+					approved: true,
+				} );
 
-			if ( approvedIds ) {
-				const approved: number[] = approvedIds.split( ',' ).map(
-					id => Number( id ),
-				);
-				for ( const id of approved ) {
-					await this.transferRepository.updateById( id, {
-						approved: true,
-					} );
-				}
+				const tx = await this.transferRepository.findById( id );
+				txs.push( tx.deployHash );
+				sum += Number( BigInt( tx.amount ) / BigInt( 1000000000 ) );
 			}
 
-			if ( declinedIds ) {
-				const declined: number[] = declinedIds.split( ',' ).map(
-					id => Number( id ),
-				);
-				for ( const id of declined ) {
-					await this.transferRepository.updateById( id, {
-						approved: false,
-					} );
-				}
+			await this.adminLogService.write(
+				currentUser,
+				'Saved ' + approved.length + ' TXs as approved: ' + sum + ' CSPR',
+				txs.join( ';' )
+			);
+		}
+
+		if ( declinedIds ) {
+			const declined: number[] = declinedIds.split( ',' ).map(
+				id => Number( id ),
+			);
+			const txs = [];
+			let sum = 0;
+			for ( const id of declined ) {
+				await this.transferRepository.updateById( id, {
+					approved: false,
+				} );
+
+				const tx = await this.transferRepository.findById( id );
+				txs.push( tx.deployHash );
+				sum -= Number( BigInt( tx.amount ) / BigInt( 1000000000 ) );
 			}
+
+			await this.adminLogService.write(
+				currentUser,
+				'Saved ' + declined.length + ' TXs as not approved: ' + sum + ' CSPR',
+				txs.join( ';' )
+			);
+		}
+	}
+
+	@oas.visibility( OperationVisibility.UNDOCUMENTED )
+	@authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
+	@get( '/transfers/status' )
+	@response( 200, {
+		description: 'Processing status',
+	} )
+	async status(): Promise<boolean> {
+		const status = await this.processingRepository.findOne( {
+			where: {
+				type: 'updating',
+			},
+		} );
+
+		if ( !status ) {
+			return false;
+		}
+		return status.value;
 	}
 }
