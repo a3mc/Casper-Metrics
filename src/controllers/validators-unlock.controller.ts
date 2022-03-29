@@ -1,12 +1,14 @@
-import { authenticate } from '@loopback/authentication';
-import { service } from '@loopback/core';
+import { authenticate, AuthenticationBindings } from '@loopback/authentication';
+import { inject, service } from '@loopback/core';
 import { repository } from '@loopback/repository';
 import { get, getModelSchemaRef, oas, OperationVisibility, param, post, response } from '@loopback/rest';
+import { UserProfile } from '@loopback/security';
 import moment from 'moment';
 import { networks } from '../configs/networks';
+import { AdminLogServiceBindings } from '../keys';
 import { ValidatorsUnlock } from '../models';
 import { ValidatorsUnlockConstantsRepository, ValidatorsUnlockRepository } from '../repositories';
-import { CirculatingService } from '../services';
+import { AdminLogService, CirculatingService } from '../services';
 
 @oas.visibility( OperationVisibility.UNDOCUMENTED )
 export class ValidatorsUnlockController {
@@ -17,6 +19,8 @@ export class ValidatorsUnlockController {
 		public validatorsUnlockConstantsRepository: ValidatorsUnlockConstantsRepository,
 		@service( CirculatingService )
 		public circulatingService: CirculatingService,
+		@inject( AdminLogServiceBindings.ADMINLOG_SERVICE )
+		public adminLogService: AdminLogService,
 	) {
 	}
 
@@ -27,6 +31,7 @@ export class ValidatorsUnlockController {
 		content: { 'application/json': { schema: getModelSchemaRef( ValidatorsUnlock ) } },
 	} )
 	async create(
+		@inject( AuthenticationBindings.CURRENT_USER ) currentUser: UserProfile,
 		@param.query.number( 'amount' ) amount: number,
 	): Promise<void> {
 		await this.validatorsUnlockConstantsRepository.deleteAll();
@@ -38,7 +43,7 @@ export class ValidatorsUnlockController {
 			unlock90: unlock90.toString(),
 			unlock365: unlock365.toString(),
 		} );
-		await this.calculateValidatorsUnlocks();
+		await this.calculateValidatorsUnlocks( currentUser );
 	}
 
 	@authenticate( { strategy: 'jwt' } )
@@ -55,17 +60,10 @@ export class ValidatorsUnlockController {
 		},
 	} )
 	async findAll(): Promise<any[]> {
-		let validatorsUnlocks = await this.validatorsUnlockConstantsRepository.find();
-
-		if ( !validatorsUnlocks.length ) {
-			await this.calculateValidatorsUnlocks();
-			validatorsUnlocks = await this.validatorsUnlockConstantsRepository.find();
-		}
-
-		return validatorsUnlocks;
+		return this.validatorsUnlockConstantsRepository.find();
 	}
 
-	async calculateValidatorsUnlocks(): Promise<void> {
+	async calculateValidatorsUnlocks( currentUser: UserProfile ): Promise<void> {
 		let validatorsUnlockConstants = await this.validatorsUnlockConstantsRepository.findOne();
 		await this.validatorsUnlockRepository.deleteAll();
 
@@ -87,6 +85,14 @@ export class ValidatorsUnlockController {
 			day: 365,
 			timestamp: moment( networks.genesis_timestamp ).add( 365, 'days' ).toISOString(),
 		} );
+
+		await this.adminLogService.write(
+			currentUser,
+			'Approved Validators Unlocks with ' +
+			( BigInt( validatorsUnlockConstants.unlock365 ) / BigInt( 1000000000 ) ) +
+			' CSPR to be unlocked in 1 year',
+			''
+		);
 
 		// Async. We don't wait for it to finish here.
 		this.circulatingService.calculateCirculatingSupply();

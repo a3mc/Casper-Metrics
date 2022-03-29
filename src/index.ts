@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
 import { ApplicationConfig, CasperMetricsApplication } from './application';
+import { MetricsDbDataSource } from './datasources';
 import { logger } from './logger';
+import { ProcessingRepository } from './repositories';
 
 export * from './application';
 dotenv.config();
@@ -12,6 +14,19 @@ export async function main( options: ApplicationConfig = {} ) {
 
 	const url = app.restServer.url;
 	logger.info( `Public API Server is running at ${ url }` );
+
+	const dataSource = new MetricsDbDataSource();
+	const processingRepository = new ProcessingRepository( dataSource );
+
+	const status = await processingRepository.findOne( {
+		where: {
+			type: 'updating'
+		}
+	} );
+	if ( status ) {
+		status.value = false;
+		await processingRepository.update( status );
+	}
 
 	return app;
 }

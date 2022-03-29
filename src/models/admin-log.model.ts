@@ -11,9 +11,9 @@ export class AdminLog extends Entity {
 
 	@property( {
 		type: 'date',
-		generated: true,
+		required: true,
 	} )
-	date?: string;
+	date: string;
 
 	@property( {
 		type: 'number',
@@ -37,6 +37,18 @@ export class AdminLog extends Entity {
 		required: true,
 	} )
 	action: string;
+
+	@property( {
+		type: 'string',
+		required: false,
+		default: '',
+		mysql: {
+			columnName: 'extra',
+			dataType: 'text',
+			nullable: 'N',
+		},
+	} )
+	extra: string;
 
 	constructor( data?: Partial<AdminLog> ) {
 		super( data );
