@@ -57,7 +57,6 @@ describe( 'EraController', () => {
 		expect( res.body[0].stakedThisEra ).to.Number();
 		expect( res.body[0].undelegatedThisEra ).to.Number();
 		expect( res.body[0].stakedDiffThisEra ).to.Number();
-		expect( res.body[0].stakedDiffSinceGenesis ).to.Number();
 	} );
 
 	it( 'invokes GET era with era id', async () => {
@@ -78,7 +77,6 @@ describe( 'EraController', () => {
 		expect( res.body[0].stakedThisEra ).to.Number();
 		expect( res.body[0].undelegatedThisEra ).to.Number();
 		expect( res.body[0].stakedDiffThisEra ).to.Number();
-		expect( res.body[0].stakedDiffSinceGenesis ).to.Number();
 	} );
 
 	it( 'should return empty array on non-existing era id when querying era objects', async () => {
