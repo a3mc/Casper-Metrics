@@ -51,7 +51,7 @@ export class TransferController {
 		@param.query.number( 'perPage' ) perPage?: number,
 		@param.query.number( 'page' ) page?: number,
 		@param.query.number( 'eraId' ) eraId?: number,
-		@param.query.string( 'search' ) search?: string,
+		@param.query.string( 'deployHash' ) deployHash?: string,
 	): Promise<any> {
 		let filter: any = {
 			where: {
@@ -64,14 +64,32 @@ export class TransferController {
 		if ( toHash ) {
 			filter = {
 				where: {
-					toHash: toHash,
+					and: [
+						{
+							or: [
+								{ toHash: toHash },
+								{ toHash: toHash.toLowerCase() },
+								{ to: toHash },
+								{ to: toHash.toLowerCase() },
+							]
+						},
+					]
 				},
 			};
 		}
 		if ( fromHash ) {
 			filter = {
 				where: {
-					fromHash: fromHash,
+					and: [
+						{
+							or: [
+								{ fromHash: fromHash },
+								{ fromHash: fromHash.toLowerCase() },
+								{ from: fromHash },
+								{ from: fromHash.toLowerCase() },
+							]
+						}
+					]
 				},
 			};
 		}
@@ -89,34 +107,38 @@ export class TransferController {
 				},
 			};
 		}
-		if ( search ) {
+		if ( deployHash ) {
 			filter = {
 				where: {
-					or: [
-						{ deployHash: search },
-						{ deployHash: search.toLowerCase() },
-						{ from: search },
-						{ from: search.toLowerCase() },
-						{ fromHash: search },
-						{ fromHash: search.toLowerCase() },
-						{ to: search },
-						{ to: search.toLowerCase() },
-						{ toHash: search },
-						{ toHash: search.toLowerCase() },
-					],
-
+					and: [
+						{
+							or: [
+								{ deployHash: deployHash },
+								{ deployHash: deployHash.toLowerCase() },
+							],
+						}
+					]
 				},
 			};
 		}
 
 		const allFilter = clone( filter );
 		const approvedFilter = clone( filter );
-		approvedFilter.where.approved = true;
+
+		if ( approvedFilter.where.and ) {
+			approvedFilter.where.and.push( {
+				approved: true
+			} );
+		} else {
+			approvedFilter.where.approved = true;
+		}
 
 		if ( perPage && page ) {
 			filter.limit = perPage;
 			filter.skip = perPage * ( page - 1 );
 		}
+
+		filter.order = ['blockHeight DESC'];
 
 		const data = await this.transferRepository.find( filter );
 
@@ -134,6 +156,38 @@ export class TransferController {
 			totalItems: await this.transferRepository.count( filter.where ),
 			approvedSum: Number( approvedSum / BigInt( 1000000000 ) ),
 			totalSum: Number( totalSum / BigInt( 1000000000 ) ),
+			data: data,
+		};
+	}
+
+	@oas.visibility( OperationVisibility.UNDOCUMENTED )
+	@authenticate( { strategy: 'jwt' } )
+	@get( '/transfers_tree' )
+	@response( 200, {
+		description: 'Array of Transfer model instances 3 levels far from genesis vaults',
+		content: {
+			'application/json': {
+				schema: {
+					type: 'array',
+					items: getModelSchemaRef( Transfer, { includeRelations: false } ),
+				},
+			},
+		},
+	} )
+	async findTree(): Promise<any> {
+		const filter: any = {
+			where: {
+				and: [
+					{ depth: { lt: 3 } },
+					{ depth: { gt: 0 } },
+				],
+			},
+		};
+
+		const data = await this.transferRepository.find( filter );
+
+		return {
+			totalItems: data.length,
 			data: data,
 		};
 	}
@@ -243,7 +297,7 @@ export class TransferController {
 		await this.adminLogService.write(
 			currentUser,
 			'Approved ' + approvedItems.length + ' TXs: ' + approvedSum + ' CSPR',
-			approvedItems.map( tx => tx.deployHash ).join( ';' )
+			approvedItems.map( tx => tx.deployHash + '|' + String( BigInt( tx.amount ) / BigInt( 1000000000 ) ) ).join( ';' )
 		);
 
 		// Async. We don't wait for it to complete here.
@@ -276,7 +330,7 @@ export class TransferController {
 				} );
 
 				const tx = await this.transferRepository.findById( id );
-				txs.push( tx.deployHash );
+				txs.push( tx.deployHash + '|' + String( BigInt( tx.amount ) / BigInt( 1000000000 ) ) );
 				sum += Number( BigInt( tx.amount ) / BigInt( 1000000000 ) );
 			}
 
@@ -299,7 +353,7 @@ export class TransferController {
 				} );
 
 				const tx = await this.transferRepository.findById( id );
-				txs.push( tx.deployHash );
+				txs.push( tx.deployHash + '|' + String( BigInt( tx.amount ) / BigInt( 1000000000 ) ) );
 				sum -= Number( BigInt( tx.amount ) / BigInt( 1000000000 ) );
 			}
 

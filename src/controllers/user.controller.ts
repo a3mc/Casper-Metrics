@@ -227,6 +227,7 @@ export class UserController {
 			faSecret: '',
 		} );
 
+		// Async. We don't wait for it here.
 		this._sendActivationLink( user, token );
 	}
 
