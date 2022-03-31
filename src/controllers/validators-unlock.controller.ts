@@ -5,9 +5,10 @@ import { get, getModelSchemaRef, oas, OperationVisibility, param, post, response
 import { UserProfile } from '@loopback/security';
 import moment from 'moment';
 import { networks } from '../configs/networks';
+import { NotAllowed } from '../errors/errors';
 import { AdminLogServiceBindings } from '../keys';
 import { ValidatorsUnlock } from '../models';
-import { ValidatorsUnlockConstantsRepository, ValidatorsUnlockRepository } from '../repositories';
+import { ProcessingRepository, ValidatorsUnlockConstantsRepository, ValidatorsUnlockRepository } from '../repositories';
 import { AdminLogService, CirculatingService } from '../services';
 
 @oas.visibility( OperationVisibility.UNDOCUMENTED )
@@ -21,6 +22,8 @@ export class ValidatorsUnlockController {
 		public circulatingService: CirculatingService,
 		@inject( AdminLogServiceBindings.ADMINLOG_SERVICE )
 		public adminLogService: AdminLogService,
+		@repository( ProcessingRepository )
+		public processingRepository: ProcessingRepository,
 	) {
 	}
 
@@ -34,6 +37,14 @@ export class ValidatorsUnlockController {
 		@inject( AuthenticationBindings.CURRENT_USER ) currentUser: UserProfile,
 		@param.query.number( 'amount' ) amount: number,
 	): Promise<void> {
+		const status = await this.processingRepository.findOne( {
+			where: { type: 'updating' },
+		} );
+
+		if ( status && status.value ) {
+			throw new NotAllowed( 'Deployment in progress. Please try later.' );
+		}
+
 		await this.validatorsUnlockConstantsRepository.deleteAll();
 
 		const unlock365 = BigInt( amount ) * BigInt( 1000000000 );
