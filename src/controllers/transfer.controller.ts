@@ -3,11 +3,11 @@ import { inject, service } from '@loopback/core';
 import { repository } from '@loopback/repository';
 import { get, getModelSchemaRef, oas, OperationVisibility, param, post, response } from '@loopback/rest';
 import { UserProfile } from '@loopback/security';
-import { NotAllowed } from '../errors/errors';
+import { NotAllowed, NotFound } from '../errors/errors';
 import { AdminLogServiceBindings } from '../keys';
 import { logger } from '../logger';
 import { Transfer } from '../models';
-import { BlockRepository, EraRepository, ProcessingRepository, TransferRepository } from '../repositories';
+import { BlockRepository, EraRepository, KnownAccountRepository, ProcessingRepository, TransferRepository } from '../repositories';
 import { AdminLogService, CirculatingService } from '../services';
 
 const { Graph } = require( 'dsa.js' );
@@ -21,6 +21,8 @@ export class TransferController {
 		public blockRepository: BlockRepository,
 		@repository( EraRepository )
 		public eraRepository: EraRepository,
+		@repository( KnownAccountRepository )
+		public knownAccountRepository: KnownAccountRepository,
 		@service( CirculatingService )
 		public circulatingService: CirculatingService,
 		@repository( ProcessingRepository )
@@ -50,7 +52,6 @@ export class TransferController {
 		@param.query.string( 'approved' ) approved?: string,
 		@param.query.number( 'perPage' ) perPage?: number,
 		@param.query.number( 'page' ) page?: number,
-		@param.query.number( 'eraId' ) eraId?: number,
 		@param.query.string( 'deployHash' ) deployHash?: string,
 	): Promise<any> {
 		let filter: any = {
@@ -61,7 +62,20 @@ export class TransferController {
 				],
 			},
 		};
+
 		if ( toHash ) {
+			if ( toHash.indexOf( 'account-hash' ) === -1 ) {
+				const knownAccount = await this.knownAccountRepository.findOne( {
+					where: { hex: toHash },
+				} );
+				if ( knownAccount ) {
+					toHash = knownAccount.hash;
+				} else {
+					logger.warn( 'Not found hash for %s', toHash );
+					throw new NotFound( 'Not found account hash' );
+				}
+			}
+
 			filter = {
 				where: {
 					and: [
@@ -69,15 +83,26 @@ export class TransferController {
 							or: [
 								{ toHash: toHash },
 								{ toHash: toHash.toLowerCase() },
-								{ to: toHash },
-								{ to: toHash.toLowerCase() },
-							]
+							],
 						},
-					]
+					],
 				},
 			};
 		}
+
 		if ( fromHash ) {
+			if ( fromHash.indexOf( 'account-hash' ) === -1 ) {
+				const knownAccount = await this.knownAccountRepository.findOne( {
+					where: { hex: fromHash },
+				} );
+				if ( knownAccount ) {
+					fromHash = knownAccount.hash;
+				} else {
+					logger.warn( 'Not found hash for %s', toHash );
+					throw new NotFound( 'Not found account hash' );
+				}
+			}
+
 			filter = {
 				where: {
 					and: [
@@ -85,11 +110,9 @@ export class TransferController {
 							or: [
 								{ fromHash: fromHash },
 								{ fromHash: fromHash.toLowerCase() },
-								{ from: fromHash },
-								{ from: fromHash.toLowerCase() },
-							]
-						}
-					]
+							],
+						},
+					],
 				},
 			};
 		}
@@ -100,13 +123,7 @@ export class TransferController {
 				},
 			};
 		}
-		if ( eraId ) {
-			filter = {
-				where: {
-					eraId: eraId,
-				},
-			};
-		}
+
 		if ( deployHash ) {
 			filter = {
 				where: {
@@ -116,8 +133,8 @@ export class TransferController {
 								{ deployHash: deployHash },
 								{ deployHash: deployHash.toLowerCase() },
 							],
-						}
-					]
+						},
+					],
 				},
 			};
 		}
@@ -127,7 +144,7 @@ export class TransferController {
 
 		if ( approvedFilter.where.and ) {
 			approvedFilter.where.and.push( {
-				approved: true
+				approved: true,
 			} );
 		} else {
 			approvedFilter.where.approved = true;
@@ -285,7 +302,7 @@ export class TransferController {
 
 		const approvedItems = await this.transferRepository.find( {
 			where: { approved: true },
-			fields: ['amount', 'deployHash']
+			fields: ['amount', 'deployHash'],
 		} );
 
 		let approvedSum = approvedItems.reduce( ( a, b ) => {
@@ -297,7 +314,7 @@ export class TransferController {
 		await this.adminLogService.write(
 			currentUser,
 			'Approved ' + approvedItems.length + ' TXs: ' + approvedSum + ' CSPR',
-			approvedItems.map( tx => tx.deployHash + '|' + String( BigInt( tx.amount ) / BigInt( 1000000000 ) ) ).join( ';' )
+			approvedItems.map( tx => tx.deployHash + '|' + String( BigInt( tx.amount ) / BigInt( 1000000000 ) ) ).join( ';' ),
 		);
 
 		// Async. We don't wait for it to complete here.
@@ -337,7 +354,7 @@ export class TransferController {
 			await this.adminLogService.write(
 				currentUser,
 				'Saved ' + approved.length + ' TXs as approved: ' + sum + ' CSPR',
-				txs.join( ';' )
+				txs.join( ';' ),
 			);
 		}
 
@@ -360,7 +377,7 @@ export class TransferController {
 			await this.adminLogService.write(
 				currentUser,
 				'Saved ' + declined.length + ' TXs as not approved: ' + sum + ' CSPR',
-				txs.join( ';' )
+				txs.join( ';' ),
 			);
 		}
 	}
