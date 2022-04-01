@@ -137,6 +137,13 @@ export class Transfer extends Entity {
 	} )
 	amount: string;
 
+	@property( {
+		type: 'number',
+		required: false,
+		default: 0
+	} )
+	denomAmount: number;
+
 	constructor( data?: Partial<Transfer> ) {
 		super( data );
 	}

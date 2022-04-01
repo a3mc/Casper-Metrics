@@ -53,6 +53,7 @@ export class TransferController {
 		@param.query.number( 'perPage' ) perPage?: number,
 		@param.query.number( 'page' ) page?: number,
 		@param.query.string( 'deployHash' ) deployHash?: string,
+		@param.query.string( 'sort' ) sort = 'blockHeight DESC',
 	): Promise<any> {
 		let filter: any = {
 			where: {
@@ -140,6 +141,8 @@ export class TransferController {
 		}
 
 		const allFilter = clone( filter );
+		allFilter.fields = ['amount'];
+
 		const approvedFilter = clone( filter );
 
 		if ( approvedFilter.where.and ) {
@@ -155,7 +158,7 @@ export class TransferController {
 			filter.skip = perPage * ( page - 1 );
 		}
 
-		filter.order = ['blockHeight DESC'];
+		filter.order = [sort];
 
 		const data = await this.transferRepository.find( filter );
 
@@ -168,6 +171,10 @@ export class TransferController {
 		let totalSum = allData.reduce( ( a, b ) => {
 			return a + BigInt( b.amount );
 		}, BigInt( 0 ) );
+
+		if ( filter.order[0].indexOf( 'amount' ) !== -1 ) {
+			console.log( 'amount sort', filter.order);
+		}
 
 		return {
 			totalItems: await this.transferRepository.count( filter.where ),
