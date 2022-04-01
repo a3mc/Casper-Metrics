@@ -66,13 +66,10 @@ export class CrawlerController {
 	}
 
 	public async start(): Promise<void> {
-		await this.crawlerService.updateTransfers();
-
-
-		// await this.redisService.client.setAsync( 'calculating', 0 );
-		// this.crawlerTimer = setTimeout( async () => {
-		// 	await this.crawl();
-		// }, 5000 );
+		await this.redisService.client.setAsync( 'calculating', 0 );
+		this.crawlerTimer = setTimeout( async () => {
+			await this.crawl();
+		}, 5000 );
 	}
 
 	public async stop(): Promise<void> {
