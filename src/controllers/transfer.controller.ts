@@ -172,10 +172,6 @@ export class TransferController {
 			return a + BigInt( b.amount );
 		}, BigInt( 0 ) );
 
-		if ( filter.order[0].indexOf( 'amount' ) !== -1 ) {
-			console.log( 'amount sort', filter.order);
-		}
-
 		return {
 			totalItems: await this.transferRepository.count( filter.where ),
 			approvedSum: Number( approvedSum / BigInt( 1000000000 ) ),
