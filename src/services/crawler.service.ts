@@ -42,6 +42,19 @@ export class CrawlerService {
 	) {
 	}
 
+	public async updateTransfers(): Promise<void> {
+		const transfers = await this.transferRepository.find( {
+			fields: ['id', 'amount', 'denomAmount']
+		} );
+		console.log( transfers.length );
+		for ( const transfer of transfers ) {
+			await this.transferRepository.updateById( transfer.id, {
+				denomAmount: Math.round( Number( this._denominate( BigInt( transfer.amount ) ) ) )
+			})
+		}
+		console.log( 'done' );
+	}
+
 	public async getLastBlockHeight(): Promise<number> {
 		await this._resetNetworks();
 		logger.debug( 'Trying to init %d nodes', this._activeRpcNodes.length );
@@ -611,6 +624,9 @@ export class CrawlerService {
 								toHash: transfer.to,
 								to: knownHex,
 								amount: transfer.amount,
+								denomAmount: Math.round(
+									Number( this._denominate( BigInt( transfer.amount ) ) )
+								),
 							} );
 						}
 					}
