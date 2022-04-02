@@ -334,6 +334,8 @@ export class TransferController {
 		@inject( AuthenticationBindings.CURRENT_USER ) currentUser: UserProfile,
 		@param.query.string( 'approvedIds' ) approvedIds?: string,
 		@param.query.string( 'declinedIds' ) declinedIds?: string,
+		@param.query.string( 'inbound' ) inbound?: string,
+		@param.query.string( 'outbound' ) outbound?: string,
 	): Promise<void> {
 		if ( await this.status() ) {
 			throw new NotAllowed( 'Deployment in progress. Please try later.' );
@@ -380,6 +382,56 @@ export class TransferController {
 			await this.adminLogService.write(
 				currentUser,
 				'Saved ' + declined.length + ' TXs as not approved: ' + sum + ' CSPR',
+				txs.join( ';' ),
+			);
+		}
+
+		if ( inbound ) {
+			const inboundTransfers = await this.transferRepository.find( {
+				where: { toHash: inbound }
+			} );
+			if ( !inboundTransfers || !inboundTransfers.length ) {
+				throw new NotFound( 'Transfers not found' );
+			}
+
+			let sum = 0;
+			const txs = [];
+
+			for ( const transfer of inboundTransfers ) {
+				await this.transferRepository.updateById( transfer.id, {
+					approved: true
+				} );
+				sum += Number( BigInt( transfer.amount ) / BigInt( 1000000000 ) );
+				txs.push( transfer.deployHash + '|' + transfer.denomAmount );
+			}
+
+			await this.adminLogService.write(
+				currentUser,
+				'Saved ' + inboundTransfers.length + ' TXs as approved: ' + sum + ' CSPR',
+				txs.join( ';' ),
+			);
+		} else if ( outbound ) {
+			const outboundTransfers = await this.transferRepository.find( {
+				where: { fromHash: outbound }
+			} );
+			if ( !outboundTransfers || !outboundTransfers.length ) {
+				throw new NotFound( 'Transfers not found' );
+			}
+
+			let sum = 0;
+			const txs = [];
+
+			for ( const transfer of outboundTransfers ) {
+				await this.transferRepository.updateById( transfer.id, {
+					approved: true
+				} );
+				sum += Number( BigInt( transfer.amount ) / BigInt( 1000000000 ) );
+				txs.push( transfer.deployHash + '|' + transfer.denomAmount );
+			}
+
+			await this.adminLogService.write(
+				currentUser,
+				'Saved ' + outboundTransfers.length + ' TXs as approved: ' + sum + ' CSPR',
 				txs.join( ';' ),
 			);
 		}
