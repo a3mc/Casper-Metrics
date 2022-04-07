@@ -4,7 +4,6 @@ import { BootMixin } from '@loopback/boot';
 import { ApplicationConfig } from '@loopback/core';
 import { RepositoryMixin } from '@loopback/repository';
 import { RestApplication } from '@loopback/rest';
-import { RestExplorerBindings, RestExplorerComponent } from '@loopback/rest-explorer';
 import { ServiceMixin } from '@loopback/service-proxy';
 import { AdminLogServiceBindings, PasswordHasherBindings, TokenServiceBindings, TokenServiceConstants, UserServiceBindings } from './keys';
 import { MySequence } from './sequence';
@@ -27,12 +26,6 @@ export class CasperMetricsApplication extends BootMixin(
 		this.component( AuthenticationComponent );
 		registerAuthenticationStrategy( this, JWTStrategy );
 		this.sequence( MySequence );
-
-		this.configure( RestExplorerBindings.COMPONENT ).to( {
-			useSelfHostedSpec: true,
-			indexTemplatePath: '',
-		} );
-		this.component( RestExplorerComponent );
 
 		this.projectRoot = __dirname;
 
