@@ -50,7 +50,6 @@
         "@loopback/core": "^2.16.0",
         "@loopback/repository": "^3.6.0",
         "@loopback/rest": "^9.3.0",
-        "@loopback/rest-explorer": "^3.3.0",
         "@loopback/security": "^0.5.4",
         "@loopback/service-proxy": "^3.2.0",
         "@open-rpc/client-js": "^1.6.3",
