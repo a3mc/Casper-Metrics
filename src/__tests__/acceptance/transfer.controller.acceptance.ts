@@ -44,8 +44,8 @@ describe( 'TransferController', () => {
 		expect( transfers.transfers.length ).equal( 5 );
 		expect( transfers.count ).equal( 28 );
 		expect( transfers.eraId ).equal( 1000 );
-		expect( transfers.eraStart ).equal( '2021-06-23T05:46:23.000Z' );
-		expect( transfers.eraEnd ).equal( '2021-06-23T07:45:25.000Z' );
+		expect( transfers.eraStart ).to.String();
+		expect( transfers.eraEnd ).to.String();
 		expect( transfers.transfers[0].id ).equal( 42536 );
 		expect( transfers.transfers[0].depth ).equal( 0 );
 		expect( transfers.transfers[0].blockHeight ).equal( 108232 );
