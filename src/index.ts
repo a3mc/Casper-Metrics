@@ -10,6 +10,7 @@ dotenv.config();
 export async function main( options: ApplicationConfig = {} ) {
 	const app = new CasperMetricsApplication( options );
 	await app.boot();
+	await app.exportOpenApiSpec( './dist/openapi.json' );
 	await app.start();
 
 	const url = app.restServer.url;
