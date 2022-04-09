@@ -1,6 +1,5 @@
 import { repository } from '@loopback/repository';
 import { get, getModelSchemaRef, oas, OperationVisibility, response } from '@loopback/rest';
-import axios from 'axios';
 import CoinGecko from 'coingecko-api';
 import { logger } from '../logger';
 import { Price } from '../models';

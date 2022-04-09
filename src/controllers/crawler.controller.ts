@@ -72,10 +72,6 @@ export class CrawlerController {
 		}, 5000 );
 	}
 
-	public async stop(): Promise<void> {
-		logger.debug( 'Crawler is stopping.' );
-	}
-
 	private reset(): void {
 		this.lastCalculated = 0;
 		this.queuedBlocks = 0;

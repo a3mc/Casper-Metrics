@@ -5,6 +5,7 @@ import { ApplicationConfig } from '@loopback/core';
 import { RepositoryMixin } from '@loopback/repository';
 import { RestApplication } from '@loopback/rest';
 import { ServiceMixin } from '@loopback/service-proxy';
+import * as path from 'path';
 import { AdminLogServiceBindings, PasswordHasherBindings, TokenServiceBindings, TokenServiceConstants, UserServiceBindings } from './keys';
 import { MySequence } from './sequence';
 import { AdminLogService } from './services';
@@ -28,6 +29,10 @@ export class CasperMetricsApplication extends BootMixin(
 		this.sequence( MySequence );
 
 		this.projectRoot = __dirname;
+
+		console.log(__dirname)
+
+		this.static('/explorer/openapi.json', path.join(__dirname, 'openapi.json'));
 
 		this.bootOptions = {
 			controllers: {
