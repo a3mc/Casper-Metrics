@@ -5,7 +5,7 @@ import { get, getModelSchemaRef, oas, OperationVisibility, param, post, response
 import { UserProfile } from '@loopback/security';
 import moment from 'moment';
 import { networks } from '../configs/networks';
-import { NotAllowed } from '../errors/errors';
+import { IncorrectData, NotAllowed } from '../errors/errors';
 import { AdminLogServiceBindings } from '../keys';
 import { ValidatorsUnlock } from '../models';
 import { ProcessingRepository, ValidatorsUnlockConstantsRepository, ValidatorsUnlockRepository } from '../repositories';
@@ -43,6 +43,10 @@ export class ValidatorsUnlockController {
 
 		if ( status && status.value ) {
 			throw new NotAllowed( 'Deployment in progress. Please try later.' );
+		}
+
+		if ( amount === undefined ) {
+			throw new IncorrectData( 'Amount is not specified' );
 		}
 
 		await this.validatorsUnlockConstantsRepository.deleteAll();

@@ -13,27 +13,6 @@ export class LogController {
 	) {
 	}
 
-	@post( '/admin-logs' )
-	@response( 200, {
-		description: 'AdminLog model instance',
-		content: { 'application/json': { schema: getModelSchemaRef( AdminLog ) } },
-	} )
-	async create(
-		@requestBody( {
-			content: {
-				'application/json': {
-					schema: getModelSchemaRef( AdminLog, {
-						title: 'NewAdminLog',
-						exclude: ['id'],
-					} ),
-				},
-			},
-		} )
-			adminLog: Omit<AdminLog, 'id'>,
-	): Promise<AdminLog> {
-		return this.adminLogRepository.create( adminLog );
-	}
-
 	@get( '/admin-logs' )
 	@response( 200, {
 		description: 'Array of AdminLog model instances',
