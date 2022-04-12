@@ -1,6 +1,6 @@
 import { Client, expect } from '@loopback/testlab';
 import { CasperMetricsApplication } from '../..';
-import { setupApplication } from './test-helper';
+import { givenTestDatabase, setupApplication } from './test-helper';
 
 describe( 'BlockController', () => {
 	let app: CasperMetricsApplication;
@@ -9,6 +9,7 @@ describe( 'BlockController', () => {
 	before( 'setupApplication', async () => {
 		( { app, client } = await setupApplication() );
 	} );
+	before( givenTestDatabase );
 
 	after( async () => {
 		await app.stop();

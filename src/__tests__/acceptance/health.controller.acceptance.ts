@@ -18,4 +18,5 @@ describe( 'HealthController', () => {
 		const res = await client.get( '/health' ).expect( 200 );
 		expect( res.text ).equal( 'I\'m fine!' );
 	} );
+
 } );

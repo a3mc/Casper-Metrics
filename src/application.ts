@@ -30,9 +30,7 @@ export class CasperMetricsApplication extends BootMixin(
 
 		this.projectRoot = __dirname;
 
-		console.log(__dirname)
-
-		this.static('/explorer/openapi.json', path.join(__dirname, 'openapi.json'));
+		this.static( '/explorer/openapi.json', path.join( __dirname, 'openapi.json' ) );
 
 		this.bootOptions = {
 			controllers: {

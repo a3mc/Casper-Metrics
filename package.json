@@ -19,7 +19,7 @@
         "eslint:fix": "npm run eslint -- --fix",
         "pretest": "npm run rebuild",
         "pretest:prod": "npm run rebuild:prod",
-        "test": "lb-mocha --allow-console-logs \"dist/__tests__\"",
+        "test": "lb-mocha --timeout 10000 --allow-console-logs \"dist/__tests__\"",
         "test:prod": "lb-mocha --allow-console-logs dist/__tests__/**/*.js",
         "premigrate": "npm run build",
         "migrate": "node ./dist/migrate",

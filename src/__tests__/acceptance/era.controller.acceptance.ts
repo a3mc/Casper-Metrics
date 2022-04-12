@@ -1,6 +1,6 @@
 import { Client, expect } from '@loopback/testlab';
 import { CasperMetricsApplication } from '../..';
-import { setupApplication } from './test-helper';
+import { givenTestDatabase, setupApplication } from './test-helper';
 
 describe( 'EraController', () => {
 	let app: CasperMetricsApplication;
@@ -9,6 +9,7 @@ describe( 'EraController', () => {
 	before( 'setupApplication', async () => {
 		( { app, client } = await setupApplication() );
 	} );
+	before( givenTestDatabase );
 
 	after( async () => {
 		await app.stop();
@@ -20,7 +21,7 @@ describe( 'EraController', () => {
 	} );
 
 	it( 'invokes GET era/circulating with era id', async () => {
-		const res = await client.get( '/era/circulating?eraId=1000' ).expect( 200 );
+		const res = await client.get( '/era/circulating?eraId=100' ).expect( 200 );
 	} );
 
 	it( 'should return 404 on non-existing era when querying circulating', async () => {
@@ -32,7 +33,7 @@ describe( 'EraController', () => {
 	} );
 
 	it( 'invokes GET era/total with era id', async () => {
-		const res = await client.get( '/era/total?eraId=1000' ).expect( 200 );
+		const res = await client.get( '/era/total?eraId=100' ).expect( 200 );
 	} );
 
 	it( 'should return 404 on non-existing era when querying total', async () => {
@@ -60,7 +61,7 @@ describe( 'EraController', () => {
 	} );
 
 	it( 'invokes GET era with era id', async () => {
-		const res = await client.get( '/era?id=1000' ).expect( 200 );
+		const res = await client.get( '/era?id=100' ).expect( 200 );
 		expect( res.body[0].id ).to.Number();
 		expect( res.body[0].startBlock ).to.Number();
 		expect( res.body[0].transfersCount ).to.Number();
@@ -85,7 +86,7 @@ describe( 'EraController', () => {
 	} );
 
 	it( 'invokes GET era by block height', async () => {
-		const res = await client.get( '/era?blockHeight=1000' ).expect( 200 );
+		const res = await client.get( '/era?blockHeight=100' ).expect( 200 );
 		expect( res.body ).not.empty();
 	} );
 

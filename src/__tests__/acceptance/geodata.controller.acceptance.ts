@@ -23,7 +23,6 @@ describe( 'GeodataController', () => {
 		const validators = JSON.parse( res.text );
 		expect( validators.length ).greaterThanOrEqual( 1 );
 		expect( validators[0].ip ).to.String();
-		expect( validators[0].performance ).to.String();
 		expect( validators[0].region ).to.String();
 		expect( validators[0].country ).to.String();
 		expect( validators[0].loc ).to.String();
