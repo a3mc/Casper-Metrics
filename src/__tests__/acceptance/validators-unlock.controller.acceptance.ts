@@ -51,6 +51,13 @@ describe( 'ValidatorsUnlockController', () => {
 
 		it( 'forbids unauthorized POST unlocks', async () => {
 			const res = await client.post( '/validators-unlock' )
+				.send( {
+					unlock90: 123,
+					custom :[{
+						amount: 555,
+						date: '2022-04-15T16:24:02Z'
+					}],
+				} )
 				.auth( jwtToken, { type: 'bearer' } ).expect( 403 );
 		} );
 
@@ -78,12 +85,21 @@ describe( 'ValidatorsUnlockController', () => {
 		} );
 
 		it( 'can update unlocks', async () => {
-			const res = await client.post( '/validators-unlock?amount=1000000' )
+			const res = await client.post( '/validators-unlock' ).send( {
+				unlock90: 123,
+				custom :[{
+					amount: 555,
+					date: '2022-04-15T16:24:02Z'
+				}],
+			} )
 				.auth( jwtToken, { type: 'bearer' } ).expect( 204 );
 		} );
 
-		it( 'throws an error if amount is not specified', async () => {
+		it( 'throws an error if data is incorrect', async () => {
 			const res = await client.post( '/validators-unlock' )
+				.send( {
+					incorrect: 123
+				} )
 				.auth( jwtToken, { type: 'bearer' } ).expect( 400 );
 		} );
 

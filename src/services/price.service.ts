@@ -20,6 +20,8 @@ export class PriceService {
 	) {
 	}
 
+	// It requires an Crypro-Compare API kee to work correctly.
+	// It needs to be set in the .env file. App will work without it, but won't show the historical market data.
 	public async checkForUpdate(): Promise<void> {
 		if ( !process.env.CC_API_KEY ) return;
 
@@ -30,6 +32,8 @@ export class PriceService {
 		};
 		const lastCompletedEra = await this.eraRepository.find( eraFilter );
 
+		// Don't abuse external service too often. We see what was locally cached first.
+		// The granularity of the stored data is 1 hour.
 		if ( lastCompletedEra && lastCompletedEra.length ) {
 			const eraPrices = await this.priceRepository.find( {
 				where: {

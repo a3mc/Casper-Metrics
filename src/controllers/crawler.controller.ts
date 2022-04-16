@@ -32,6 +32,7 @@ export class CrawlerController {
 		@service( GeodataService ) private geodataService: GeodataService,
 		@service( PriceService ) private priceService: PriceService,
 	) {
+		// Establish a connection with separate workers that help to crawl blocks as a separate process.
 		this.redisService.sub.client.on( 'message', ( channel: string, message: string ) => {
 
 			if ( channel === 'register' ) {
@@ -82,6 +83,7 @@ export class CrawlerController {
 	}
 
 	private async crawl() {
+		// We store a flag if crawling is in progress.
 		if (
 			!!Number( await this.redisService.client.getAsync( 'calculating' ) ) ||
 			!this.workers.length
@@ -89,11 +91,17 @@ export class CrawlerController {
 			await this.scheduleCrawling();
 			return;
 		}
+		// Geo data is a collection of know peers, where mostly active validators are interested for us.
+		// It is collected by external service and fetched periodically.
+		// If path to the service is not set it will use a mock that actually is just a dump of last fetch,
+		// that should be valid enough for testing, displaying peers on the map, etc.
 		logger.debug( 'Checking if geodata needs to be updated' );
 		await this.geodataService.checkForUpdate().catch( () => {
 			logger.error( 'Updating validators data failed' );
 		} );
 
+		// Prices are fetched by using external service.
+		// It requires an access key (free key is enough) that can be set u in the .env file.
 		logger.debug( 'Checking if prices need to be updated' );
 		await this.priceService.checkForUpdate().catch( () => {
 			logger.error( 'Updating historical price data failed' );
@@ -104,6 +112,8 @@ export class CrawlerController {
 
 		this.reset();
 
+		// Launch a few connections to the know RPC nodes and see if at least a few have the same last block height.
+		// Schedule a retry if not.
 		this.lastBlockHeight = await this.crawlerService.getLastBlockHeight()
 			.catch( ( error: Error ) => {
 				logger.error( 'Can\'t get last block height.' );
@@ -120,6 +130,7 @@ export class CrawlerController {
 
 		logger.debug( 'Last calculated %d', this.lastCalculated );
 
+		// Determine which blocks need to be crawled
 		await this.collectBlocksToCrawl();
 
 		if ( this.queuedBlocks ) {
@@ -130,6 +141,7 @@ export class CrawlerController {
 		}
 	}
 
+	// A helper to see the crawling process, when crawling is started from an empty database or after a long pause.
 	private _setCrawlingMeter(): void {
 		this.meterInterval = setInterval( () => {
 			logger.debug(
@@ -141,6 +153,8 @@ export class CrawlerController {
 		}, 60000 );
 	}
 
+	// Blocks are crawled asynchronously, in random order. But some data in Eras need the to be in the order.
+	// So Only once all blocks (from a limited batch) are crawled, we can trigger the calculation that updates Eras.
 	private startCalculating(): void {
 		this.crawlerService.calcBlocksAndEras().then(
 			() => {
@@ -157,6 +171,8 @@ export class CrawlerController {
 		} );
 	}
 
+	// Compare last calculated (that means its Era is process too) blocks and start from the next till the last known one.
+	// When there's no catching up, it's usually just one block.
 	private async collectBlocksToCrawl(): Promise<void> {
 		let worker = 0;
 
@@ -178,6 +194,8 @@ export class CrawlerController {
 		logger.info( 'Scheduled %d blocks to crawl', this.queuedBlocks );
 	}
 
+	// A little delay to let workers finish their task and report that to the controller.
+	// After that the new crawling loop starts.
 	private async scheduleCrawling(): Promise<void> {
 		clearInterval( this.meterInterval );
 		clearTimeout( this.crawlerTimer );

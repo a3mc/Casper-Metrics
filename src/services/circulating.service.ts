@@ -65,6 +65,7 @@ export class CirculatingService {
 		logger.debug( 'Finished updating Eras' );
 	}
 
+	// Collect unlocked validators, rewards and marked transfers.
 	public async updateEraCirculatingSupply( era: Era ): Promise<void> {
 		let circulatingSupply = BigInt( 0 );
 
@@ -90,14 +91,9 @@ export class CirculatingService {
 		// Get validators unlock schedule
 		const unlockedValidators = await this.validatorsUnlockRepository.find( {
 			where: {
-				and: [
-					{ day: { gte: 0 } },
-					{
-						timestamp: {
-							lte: era.end ? era.end : moment( era.start ).add( 2, 'hours' ).toISOString(),
-						},
-					},
-				],
+				timestamp: {
+					lte: era.end ? era.end : moment( era.start ).add( 2, 'hours' ).toISOString(),
+				},
 			},
 		} );
 
@@ -106,14 +102,14 @@ export class CirculatingService {
 			return BigInt( a ) + BigInt( b.amount );
 		}, BigInt( 0 ) ) / BigInt( 1000000000 ) ) );
 
-		// Calculate the percentage of the rewards that go to circulating supply
-		const lockedValidatorsAmount = networks.genesis_validators_weights_total - unlockedValidatorsAmount;
-		const allRewards = Number( era.totalSupply ) - networks.genesis_total_supply;
-		const validatorsWeights = Number( era.validatorsWeights );
-		const circulatingValidatorsPercent = (validatorsWeights - lockedValidatorsAmount) / validatorsWeights * 100;
-		const releasedRewards = Math.round( allRewards * circulatingValidatorsPercent );
+		// Add unlocked validators amount.
+		circulatingSupplyDenominated += unlockedValidatorsAmount;
 
-		// Add rewards
+		// Calculate the percentage of the rewards that go to circulating supply.
+		const allRewards = Number( era.totalSupply ) - Number( networks.genesis_total_supply );
+		const releasedRewards = ( unlockedValidatorsAmount / networks.genesis_validators_weights_total ) * allRewards;
+
+		// Add rewards.
 		circulatingSupplyDenominated += releasedRewards;
 
 		// Update Era with the calculated amount.

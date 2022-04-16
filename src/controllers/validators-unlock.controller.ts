@@ -5,10 +5,10 @@ import { get, getModelSchemaRef, oas, OperationVisibility, post, requestBody, re
 import { UserProfile } from '@loopback/security';
 import moment from 'moment';
 import { networks } from '../configs/networks';
-import { NotAllowed } from '../errors/errors';
+import { IncorrectData, NotAllowed } from '../errors/errors';
 import { AdminLogServiceBindings } from '../keys';
 import { ValidatorsUnlock } from '../models';
-import { ProcessingRepository, ValidatorsUnlockConstantsRepository, ValidatorsUnlockRepository } from '../repositories';
+import { ProcessingRepository, ValidatorsUnlockRepository } from '../repositories';
 import { AdminLogService, CirculatingService } from '../services';
 
 @oas.visibility( OperationVisibility.UNDOCUMENTED )
@@ -16,8 +16,6 @@ export class ValidatorsUnlockController {
 	constructor(
 		@repository( ValidatorsUnlockRepository )
 		public validatorsUnlockRepository: ValidatorsUnlockRepository,
-		@repository( ValidatorsUnlockConstantsRepository )
-		public validatorsUnlockConstantsRepository: ValidatorsUnlockConstantsRepository,
 		@service( CirculatingService )
 		public circulatingService: CirculatingService,
 		@inject( AdminLogServiceBindings.ADMINLOG_SERVICE )
@@ -43,6 +41,10 @@ export class ValidatorsUnlockController {
 
 		if ( status && status.value ) {
 			throw new NotAllowed( 'Deployment in progress. Please try later.' );
+		}
+
+		if ( !unlocksData || !unlocksData.unlock90 || !unlocksData.custom ) {
+			throw new IncorrectData( 'Data is invalid' );
 		}
 
 		await this.validatorsUnlockRepository.deleteAll();
