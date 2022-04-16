@@ -14,4 +14,10 @@ export class HealthController {
 	async health(): Promise<string> {
 		return 'I\'m fine!';
 	}
+
+	@get( '/' )
+	@response( 200 )
+	async welcome(): Promise<string> {
+		return 'Welcome!';
+	}
 }
