@@ -445,10 +445,6 @@ export class CrawlerService {
 				logger.error( e );
 				throw new Error( 'Cannot create new era ' + block.eraId );
 			} );
-
-			await this.circulatingService.updateEraCirculatingSupply(
-				await this.eraRepository.findById( block.eraId ),
-			);
 		}
 	}
 

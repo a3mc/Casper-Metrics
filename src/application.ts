@@ -60,7 +60,7 @@ export class CasperMetricsApplication extends BootMixin(
 			openapi: '3.0.0',
 			info: {
 				title: 'Casper Metrics API',
-				version: '0.2.3',
+				version: '0.2.4',
 			},
 			paths: {},
 			components: { securitySchemes: SECURITY_SCHEME_SPEC },

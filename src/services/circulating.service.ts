@@ -23,10 +23,11 @@ export class CirculatingService {
 	}
 
 	public async calculateCirculatingSupply(): Promise<void> {
+		// Set a flag to prevent saving when update is in progress.
 		let status = await this.processingRepository.findOne( {
 			where: {
-				type: 'updating'
-			}
+				type: 'updating',
+			},
 		} );
 		if ( status ) {
 			status.value = true;
@@ -35,24 +36,26 @@ export class CirculatingService {
 			await this.processingRepository.create(
 				{
 					type: 'updating',
-					value: true
-				}
+					value: true,
+				},
 			);
 		}
 		logger.debug( 'Updating Eras Circulating Supply' );
 
-
+		// Update each era to store calculated circulating supply.
+		// New eras will be updated automatically.
 		const eras = await this.eraRepository.find( {
-			fields: ['id', 'start', 'end', 'totalSupply'],
+			fields: ['id', 'start', 'end', 'totalSupply', 'validatorsWeights'],
 		} );
 		for ( const era of eras ) {
 			await this.updateEraCirculatingSupply( era );
 		}
 
+		// Switch of the flag to allow further editing.
 		status = await this.processingRepository.findOne( {
 			where: {
-				type: 'updating'
-			}
+				type: 'updating',
+			},
 		} );
 		if ( status ) {
 			status.value = false;
@@ -62,9 +65,12 @@ export class CirculatingService {
 		logger.debug( 'Finished updating Eras' );
 	}
 
+	// Collect unlocked validators, rewards and marked transfers.
 	public async updateEraCirculatingSupply( era: Era ): Promise<void> {
 		let circulatingSupply = BigInt( 0 );
 
+		// Get all transfers marked as "approved" which means they should be counted as a part
+		// of Circulating Supply.
 		const approvedUnlocks = await this.transferRepository.find( {
 			where: {
 				eraId: {
@@ -75,32 +81,38 @@ export class CirculatingService {
 			fields: ['amount'],
 		} );
 
+		// Sum all amounts of found transfers.
 		circulatingSupply += approvedUnlocks.reduce( ( a: bigint, b: Transfer ) => {
 			return a + BigInt( b.amount );
 		}, BigInt( 0 ) );
 
+		let circulatingSupplyDenominated = Math.round( Number( circulatingSupply / BigInt( 1000000000 ) ) );
+
+		// Get validators unlock schedule
 		const unlockedValidators = await this.validatorsUnlockRepository.find( {
 			where: {
-				and: [
-					{ day: { gte: 0 } },
-					{
-						timestamp: {
-							lte: era.end ? era.end : moment( era.start ).add( 2, 'hours' ).toISOString(),
-						},
-					},
-				],
+				timestamp: {
+					lte: era.end ? era.end : moment( era.start ).add( 2, 'hours' ).toISOString(),
+				},
 			},
 		} );
 
-		circulatingSupply += unlockedValidators.reduce( ( a: bigint, b: ValidatorsUnlock ) => {
+		// Get the sum of validators unlock to the circulating supply.
+		let unlockedValidatorsAmount = Math.round( Number( unlockedValidators.reduce( ( a: bigint, b: ValidatorsUnlock ) => {
 			return BigInt( a ) + BigInt( b.amount );
-		}, BigInt( 0 ) );
+		}, BigInt( 0 ) ) / BigInt( 1000000000 ) ) );
 
-		const allRewards = Number( era.totalSupply ) - networks.genesis_total_supply;
-		let circulatingSupplyDenominated = Number( circulatingSupply / BigInt( 1000000000 ) );
-		const releasedRewards = allRewards * ( circulatingSupplyDenominated / networks.genesis_total_supply );
+		// Add unlocked validators amount.
+		circulatingSupplyDenominated += unlockedValidatorsAmount;
+
+		// Calculate the percentage of the rewards that go to circulating supply.
+		const allRewards = Number( era.totalSupply ) - Number( networks.genesis_total_supply );
+		const releasedRewards = ( unlockedValidatorsAmount / networks.genesis_validators_weights_total ) * allRewards;
+
+		// Add rewards.
 		circulatingSupplyDenominated += releasedRewards;
 
+		// Update Era with the calculated amount.
 		await this.eraRepository.updateById( era.id, {
 			circulatingSupply: BigInt( Math.round( circulatingSupplyDenominated ) ),
 		} );

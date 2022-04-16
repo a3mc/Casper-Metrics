@@ -1,9 +1,9 @@
 {
     "name": "casper-metrics-api",
-    "version": "0.2.3",
+    "version": "0.2.4",
     "description": "Public API for general Casper metrics",
     "keywords": [
-        "casper"
+        "casper", "cspr", "metrics"
     ],
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -15,12 +15,8 @@
         "start": "pm2 start ecosystem.config.js",
         "start:api": "pm2 start ecosystem.config.js --only 'metrics-api'",
         "start:crawler": "pm2 start ecosystem.config.js --only 'crawler-worker'",
-        "eslint": "lb-eslint --report-unused-disable-directives .",
-        "eslint:fix": "npm run eslint -- --fix",
         "pretest": "npm run rebuild",
-        "pretest:prod": "npm run rebuild:prod",
         "test": "lb-mocha --timeout 10000 --allow-console-logs \"dist/__tests__\"",
-        "test:prod": "lb-mocha --allow-console-logs dist/__tests__/**/*.js",
         "premigrate": "npm run build",
         "migrate": "node ./dist/migrate",
         "migrate:erase": "npm run migrate -- --rebuild && redis-cli -n 0 flushdb",

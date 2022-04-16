@@ -11,8 +11,12 @@ import {
 } from '../repositories';
 import { CirculatingService, CrawlerService, RedisService } from '../services';
 
+
+// The purpose of this worker is to help the application to crawl blocks faster.
+// There's some flexibility how many workers can be launched. They rely on PM2 to manage them
+// and on Redis for internal communication. Using that boosts the crawling speed when catch up is needed.
 export class CrawlerWorker {
-	private _parallelLimit = 200;
+	private _parallelLimit = 200; // That boost IO to launch a few task in parallel. Can be adjusted depending on the server abilities.
 	private _asyncQueue: any = [];
 	private _isCrawling = false;
 
@@ -22,6 +26,7 @@ export class CrawlerWorker {
 	) {
 		logger.debug( 'Hello from crawling worker %d', process.env.pm_id );
 
+		// Register the worker and set up communication with the main app.
 		this.redisService.sub.client.on( 'message', async ( channel: string, message: string ) => {
 			if ( channel === 'create' + process.env.pm_id && !this._isCrawling ) {
 				let blockHeight = Number( message );
@@ -46,11 +51,15 @@ export class CrawlerWorker {
 					logger.debug( `Starting crawling ${ this._asyncQueue.length } blocks` );
 					this._isCrawling = true;
 					await this.crawlerService.setCasperServices();
+
+					// using parallel tasks helps boosting IO a bit, and the speed as the result.
 					async.parallelLimit(
 						this._asyncQueue,
 						this._parallelLimit,
 						() => {
 							logger.debug( 'Job done' );
+
+							// Once job is done, worker reports it to the app.
 							if ( this._isCrawling ) {
 								this._isCrawling = false;
 								this.redisService.pub.client.publish( 'control', 'finished' );
@@ -66,6 +75,7 @@ export class CrawlerWorker {
 				}
 			}
 
+			// Worker can be stopped by a command and empty its queue.
 			if ( channel === 'control' && message === 'stop' ) {
 				if ( this._isCrawling ) {
 					this.redisService.pub.client.publish( 'control', 'finished' );
@@ -84,6 +94,7 @@ export class CrawlerWorker {
 	}
 }
 
+// As we don't use LifeCycleObserver here, the instance's dependencies are specified manually here.
 const dataSource = new MetricsDbDataSource();
 new CrawlerWorker(
 	new CrawlerService(

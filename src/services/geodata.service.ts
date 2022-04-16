@@ -9,6 +9,9 @@ import { PeersRepository } from '../repositories';
 
 dotenv.config();
 
+
+// This service brings a table of peers, including Validators from an external service.
+// If path to the service is not set in the .env, it uses a mock with the latest dump.
 @injectable( { scope: BindingScope.TRANSIENT } )
 export class GeodataService {
 	constructor(

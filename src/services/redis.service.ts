@@ -15,6 +15,9 @@ export interface RedisClientSet {
 	deleteAsync: any;
 }
 
+
+// A helper service for using Redis
+// It wraps a few methods in Promises and creates connected clients.
 @injectable( { scope: BindingScope.TRANSIENT } )
 export class RedisService {
 	public client: RedisClientSet;
@@ -28,6 +31,7 @@ export class RedisService {
 	}
 
 	private _createClient(): RedisClientSet {
+		// We assume DB:0 can be a default, otherwise it can be set in the environment variables.
 		const client = redis.createClient( { db: process.env.REDIS_DB ?? 0 } );
 		return {
 			client: client,

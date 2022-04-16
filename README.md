@@ -2,59 +2,118 @@
 
 Purpose of this application is to serve accurate metrics data crawled and analysed from Casper Blockchain.
 
-There is an asynchronous crawler that collects data from RPC servers. There's a list of 30 servers in the networks files that you can modify. By default, it uses a cluster of 4 workers, each making requests to this servers.
-Swagger interface for the endpoints can give some insight on the data structure and how to make queries.
-Admin part is a separate app that makes requests to the protected API. It has possibilities to find and approve transactions that were unlocked as well as changing the amount of locked Validators.
+There is an asynchronous crawler that collects data from RPC servers. By default, it uses a cluster of 4 workers, each making requests to theses servers.
+Swagger interface of the Front part `https://caspermetrics.io/api` can give some insight on the data structure and how to make queries.
+Admin part is makes requests to the protected API endpoints. It has possibilities to find and approve transactions that were unlocked as well as changing the amount of locked Validators.
 
 ## Prerequisites
 
 Please make sure you have the following installed:
 
-- Nginx
+- Nginx (Optionally, not needed to for local testing)
 - PM2
 - Node 16+
 - MySQL 8+
-- Redis
+- Redis (default port, no password)
 
-Please pre-create two database, one for dev and for production networks:
-metrics (prod) and metricsdev (dev). The exact db names can be configured.
-
+Please pre-create a database and a user.
+Create `.env` file with all connection parameters.
+Carefully review the `example.env` with the instructions.
 Database structure will be created when running 'migrate' commands.
+
+
+App has documented public endpoints for the Front App that can be observed here in action:
+https://caspermetrics.io
+
+It can be also used as an API for any service that needs this data.
+
+Depending on the app configuration it can serve as just a Public API, or as an Admin API as well.
+Admin API endpoints are protected and require logging in. The front for the admin part can be observed here:
+https://admin.caspermetrics.io
+
+API, Public Front and Admin Front are now three separate apps, living in different repositories:
+
+https://github.com/a3mc/Casper-Metrics
+https://github.com/a3mc/Casper-Metrics-Front
+https://github.com/a3mc/Caper-Metrics-Admin
+
+Once you have all set up, install the app.
 
 ```sh
 npm install
 ```
 
-To only install resolved dependencies in `package-lock.json`:
+Create DB structure by running:
+
+```shell
+npm run migrate
+```
+Make sure you have create an empty MySQL database and a user with sufficient permissions and set up your .env file.
+
+## Testing
+
+To make sure that all is set up correctly run the suite of tests by executing:
 
 ```sh
-npm ci
+npm run test
 ```
+
+If all was set up correctly, all tests should pass. For tests, an empty in-memory database is created, filled with mock
+values that are identical in their structure to those used in the production database.
+
+## Initial catch up
+
+When you start with an empty database, it will take quite a while to get all blocks crawled and eras created.
+Even though it's well optimised, it may consume quite some CPU, memory and network traffic.
+
+As blocks are crawled asynchronously, in batches, but in random order, the front and admin apps can be not fully functional
+or provide partial data until it finishes and stabilizes.
+
+As an option you can import a database with precrawled blocks and eras, that will **save your time**.
 
 ## Run the application
 
-You may want to edit networks file to set your preferred ports.
-Create a .env file in the root directory and set up your MySQL and Telegram (optional) credentials. There's an example.env file you can copy and edit.
+There are two options how the app can run together with the Crawler Workers, that will collect new blocks and Eras,
+or just as a server of existing data, which can be useful when there are a few servers and a balancer are used, and you
+want a few of them just to serve data, without crawling or Admin functions.
 
-### For production mode:
+To run everything at once type:
 
-`npm run migrate && npm run build:prod && pm2 reload ecosystem.config.js`
+```sh
+npm run start
+```
 
-### For development mode:
+That will launch the main app as well as 4 crawlers that crawl blocks.
+You can see more options in `package.json` and `ecosystem.config.js`.
+As it is launced with PM2 manager you can observe the status and see the logs with the following commands:
 
-`npm run migrate && npm run build && pm2 reload ecosystem.config.js`
+```sh
+    pm2 status
+```
 
-There's an networks file additionally to .env, that you don't need to change to run the project, but if you wish to alter something there it can be found in `environments` directory. When you you build the project in production mode it uses prod file, and when in dev - dev file. TODO: some settings will be moved to .env to simply the setup.
+```sh
+    pm2 log all
+```
 
-Application needs a reverse proxy to be set for to ports, set it networks.ts file. One is used for the public front, and another for admin. The latter needs to be protected.
+You can optionally set log level to "debug" in the `.env` file to get more verbose response.
 
-## URLs to access the application
+If all is set up correctly you should be able to access your application on the port you've set, by default
+it should be accessible at `http://localhost:3000`
 
-Ports are specified in the networks configuration files.
-By default the prod build will open the front page on http://localhost:3000 and the admin panel on http://localhost:3004.
-Dev networks uses 3002 and 3003 ports respectively.
+There's no front indented to be served by the app so the root will show just a "Welcome!" message.
+You can set up and run Front and Admin apps to get the full use of API.
 
-It's supposed to forward these ports to external ports using NGINX (or another) reverse-proxy. THat's not required during testing or development.
+Please refer to their dedicated repositories on how to set them up and run.
+
+## URLs to access the API
+
+The best way would be to start with the API section of the front app (https://caspermetrics.io)
+There you can see what kind of requests you can make.
+
+For example `http://localhost:3000/block` to get the last block.
+
+Admin enpoints are not documented in the `openapi` spec file and most of them are protected with a JWT token,
+that is set up to live for 24 after the login. Please see the `example.env` file on how to configure it and access for the first time.
 
 ## Rebuild the project
 
@@ -63,75 +122,35 @@ To incrementally build the project:
 ```sh
 npm run build
 ```
-OR:
-```sh
-npm run build:prod
-```
-
-To force a full build by cleaning up cached artifacts:
-
-```sh
-npm run rebuild
-```
-OR:
-```sh
-npm run rebuild:prod
-```
-
-## Running on a clean database
-
-On the first run, crawler will use 4 processes to asyncronously parse blocks and transactions starting from genesis. This may consume some resource. You can adjust the crawling speed my launching less/more processed or by adjusting parallel limit of each process. See `_parallelLimit` in workers/crawler.worker.ts
-
-## Regular operation
-
-When database is crawled, only new blocks get indexed. That doesn't cosume any significant resources. TODO: The number of connected RPC servers will be adjusted for regular routine crawling.
-
-## Other useful commands
-
-- `npm run migrate`: Migrate database schemas for models
-- `npm run migrate:erase`: Erase and migrate dev database schemas for models
-- `npm run migrate:erase:prod`: Erase and migrate production database schemas for models
-
-## Tests
-
-As acceptance tests require the database to be filled with data, please make sure indexing and calculation is complete.
-You may run on either DEV or PROD env.
-
-To run tests using DEV networks:
-```sh
-npm run test
-```
-To run tests using PROD networks:
-```sh
-npm run test:prod
-```
 
 ## Structure
 
-There are two webapps, one for the public frontend and another is for admin panel.
-Admin part consists of admin enpoints API and a frontend. You can find admin panel code in /admin-ui
-It's a sub-project written in Angular. Please run inside the folder:
-
-[Please note that admin app is presented here as a Milestone 2 part]
-
-Admin UI has to be served under protected domain. Currently, Basic Http Auth is used to protect it.
-Both Frontend and Admin parts expose their API endpoints.
-
-From the admin-ui directory run the following:
-
-`npm install && npm run build`
-
-Admin part is supposed to be protected with Basic Http Auth for now. Web auth with JWT token will be presented in the upcoming update.
+When in the last version there were two apps inside one - for public and admin, now the API for bot is just a one app,
+and front projects migrated for the dedicated repositories. That helps to keep the project better organized and to prevent
+unnecessary code duplication and overlapping.
 
 ## Security considerations
 
-Public Frontend part is a read-only app, so unless there's anything that can compromise db access, it should be safe. Nevertheless, please kindly report any issues or doubts in the Github sections of this repository and they'll be addressed ASAP.
+Public endpoints are read-only, so unless there's anything that can compromise db access, it should be safe. Nevertheless, please kindly report any issues or doubts in the Github sections of this repository and they'll be addressed ASAP.
 
-Admin part is much more sensitive, as it allows writing to db. Currently the solution was to use BASIC-HTTP-AUTH to cover its enpoints and the interface to prevent any possible security holes. A more sofisticated auth is in the development and will be released after the testing stage.
+Admin part is more sensitive, as it allows writing to db. It is covered with lots of checks ant tests to prevent unauthorised access.
+
+### Admin role
+
+There are three roles for the admin area.
+
+The first logged-in user (see `example.env`) gets the Administrator role and can invite new users.
+
+Once a new user is invited (via link in the email) - they first have to set up their password and 2FA before they can log in.
+New users get a "Viewer" role by default, meaning that they can see everything (except the users list) but can't take any action.
+Once new user has set up his account, admin can change their role to "Editor" or "Administrator".
+The only difference between "Editors" and "Administrators" is that the latter can edit users while "Editors" can't.
+
 
 ## Documentation
 
-Most of the code is self-explanatory, and swagger interfaces can give you some insight how to work with the enpoints. But we are preparing full documentation that will be release as a part of Milestone 3.
+Most of the code is self-explanatory, and swagger interfaces can give you some insight how to work with the enpoints.
+We've added more comments in the difficult parts of the code, and we are preparing a full documentation that will be released as a part of Milestone 3.
 
 ## Contributing
 
@@ -143,17 +162,11 @@ This project is licensed under MIT.
 
 ## Working Front version example
 
-https://cspr.rpc.best/explorer/
+https://caspermetrics.io
 
-## Admin UI screenshot
+## Admin UI 
 
-![admin demo](https://github.com/a3mc/casper-metrics/blob/master/public/admin1.png?raw=true)
-
-## Front API screenshot
-
-![admin demo](https://github.com/a3mc/casper-metrics/blob/master/public/front1.png?raw=true)
-
-
+https://admin.caspermetrics.io
 
 
 
