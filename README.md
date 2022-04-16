@@ -34,8 +34,11 @@ https://admin.caspermetrics.io
 API, Public Front and Admin Front are now three separate apps, living in different repositories:
 
 https://github.com/a3mc/Casper-Metrics
+
 https://github.com/a3mc/Casper-Metrics-Front
+
 https://github.com/a3mc/Caper-Metrics-Admin
+
 
 Once you have all set up, install the app.
 
