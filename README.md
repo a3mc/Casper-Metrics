@@ -37,7 +37,7 @@ https://github.com/a3mc/Casper-Metrics
 
 https://github.com/a3mc/Casper-Metrics-Front
 
-https://github.com/a3mc/Caper-Metrics-Admin
+https://github.com/a3mc/Casper-Metrics-Admin
 
 
 Once you have all set up, install the app.
