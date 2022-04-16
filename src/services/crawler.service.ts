@@ -10,7 +10,7 @@ import { networks } from '../configs/networks';
 import { BlockStakeInfo } from '../controllers';
 import { logger } from '../logger';
 import { Block, Era, Transfer } from '../models';
-import { BlockRepository, EraRepository, KnownAccountRepository, TransferRepository } from '../repositories';
+import { BlockRepository, EraRepository, KnownAccountRepository, PeersRepository, TransferRepository } from '../repositories';
 import { CirculatingService } from './circulating.service';
 import { RedisService } from './redis.service';
 
@@ -37,6 +37,7 @@ export class CrawlerService {
 		@repository( BlockRepository ) public blocksRepository: BlockRepository,
 		@repository( TransferRepository ) public transferRepository: TransferRepository,
 		@repository( KnownAccountRepository ) public knownAccountRepository: KnownAccountRepository,
+		@repository( PeersRepository ) public peersRepository: PeersRepository,
 		@service( RedisService ) public redisService: RedisService,
 		@service( CirculatingService ) public circulatingService: CirculatingService,
 	) {
@@ -263,7 +264,7 @@ export class CrawlerService {
 
 	public async setCasperServices(): Promise<void> {
 		this._casperServices = [];
-		for ( const ip of networks.rpc_nodes ) {
+		for ( const ip of await this._retrieveActiveRPCNodes() ) {
 			const lastQueried: string = await this.redisService.client.getAsync( 'rpc' + ip );
 			const banned: string = await this.redisService.client.getAsync( 'ban' + ip );
 			if ( lastQueried ) {
@@ -362,19 +363,52 @@ export class CrawlerService {
 		this._casperServices.push( casperServiceSet );
 	}
 
+	// Refresh the list of RPC services
 	private async _resetNetworks(): Promise<void> {
 		this._casperServices = [];
-		this._activeRpcNodes = Object.assign( [], networks.rpc_nodes );
+		this._activeRpcNodes = Object.assign( [], await this._retrieveActiveRPCNodes() );
 		for ( const ip of this._activeRpcNodes ) {
 			await this._deleteService( ip );
 		}
 	}
 
+	// Get the list of active RPC nodes IPs
+	private async _retrieveActiveRPCNodes(): Promise<string[]> {
+		// First determine the last version stored in the list.
+		const lastVersionResult = await this.peersRepository.find( {
+			limit: 1,
+			order: ['version DESC'],
+			fields: ['version'],
+		} );
+
+		if ( lastVersionResult?.length ) {
+			// Get only active validators with open rpc and valid status
+			const rpcs = await this.peersRepository.find( {
+				where: {
+					mission: 'VALIDATOR',
+					rpc: 'RPC_OPEN',
+					status: 'STATUS_AVAILABLE',
+					version: lastVersionResult[0].version,
+				},
+				fields: ['ip']
+			} );
+
+			if ( rpcs && rpcs.length ) {
+				return rpcs.map( item => item.ip );
+			} else {
+				return [];
+			}
+		}
+		return [];
+	}
+
+	// Add RPC service to the list
 	private async _addService( service: CasperServiceSet ): Promise<void> {
 		await this.redisService.client.setAsync( 'rpc' + service.ip, moment().valueOf().toString() );
 		await this.redisService.client.setAsync( 'ban' + service.ip, '0' );
 	}
 
+	// Mark RPC service as having issues
 	private async _banService( service: CasperServiceSet ): Promise<void> {
 		let banLevel = Number( await this.redisService.client.getAsync( 'ban' + service.ip ) );
 		banLevel++;
@@ -382,11 +416,13 @@ export class CrawlerService {
 		logger.debug( 'Banned %s to %d level', service.ip, banLevel );
 	}
 
+	// Remove RPC service from the list
 	private async _deleteService( ip: String ): Promise<void> {
 		await this.redisService.client.deleteAsync( 'rpc' + ip );
 		await this.redisService.client.deleteAsync( 'ban' + ip );
 	}
 
+	// Use servers that didn't respond in time or had errors more rare.
 	private async _getCasperService(): Promise<CasperServiceSet> {
 		if ( !this._casperServices.length ) {
 			throw new Error( 'No RPC services available.' );
