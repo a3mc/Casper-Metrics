@@ -152,9 +152,15 @@ The only difference between "Editors" and "Administrators" is that the latter ca
 Most of the code is self-explanatory, and swagger interfaces can give you some insight how to work with the enpoints.
 We've added more comments in the difficult parts of the code, and we are preparing a full documentation that will be released as a part of Milestone 3.
 
-## Contributing
+## Contributing and Code of Conduct
 
-You are welcome to add your suggestions and to contribute to the project. Please create a PR against develop branch and it will be reviewed shortly.
+You are welcome to add your suggestions and to contribute to the project.
+Please create PRs against develop branch if you want to contribute.
+*We reserve the right to ignore or decline any PRs and not to respond to the messages.*
+
+Please follow the best practices, follow the code structure and make sure that your suggestion is really valuable for the project and well-formed.
+When you open an issue, please make sure you provide enough details on how to reproduce it.
+Don't use explicit lexis and be polite to other members.
 
 ## License
 
@@ -164,7 +170,7 @@ This project is licensed under MIT.
 
 https://caspermetrics.io
 
-## Admin UI 
+## Admin UI
 
 https://admin.caspermetrics.io
 

@@ -5,7 +5,7 @@ import { logger } from '../logger';
 import {
 	BlockRepository,
 	EraRepository,
-	KnownAccountRepository, ProcessingRepository,
+	KnownAccountRepository, PeersRepository, ProcessingRepository,
 	TransferRepository,
 	ValidatorsUnlockRepository,
 } from '../repositories';
@@ -102,13 +102,14 @@ new CrawlerWorker(
 		new BlockRepository( dataSource ),
 		new TransferRepository( dataSource ),
 		new KnownAccountRepository( dataSource ),
+		new PeersRepository( dataSource ),
 		new RedisService(),
 		new CirculatingService(
 			new EraRepository( dataSource ),
 			new BlockRepository( dataSource ),
 			new TransferRepository( dataSource ),
 			new ValidatorsUnlockRepository( dataSource ),
-			new ProcessingRepository( dataSource ,)
+			new ProcessingRepository( dataSource ),
 		),
 	),
 	new RedisService(),
