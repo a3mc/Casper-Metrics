@@ -2,8 +2,8 @@
 
 Purpose of this application is to serve accurate metrics data crawled and analysed from Casper Blockchain.
 
-There is an asynchronous crawler that collects data from RPC servers. By default, it uses a cluster of 4 workers, each making requests to this servers.
-Swagger interface for the endpoints can give some insight on the data structure and how to make queries.
+There is an asynchronous crawler that collects data from RPC servers. By default, it uses a cluster of 4 workers, each making requests to theses servers.
+Swagger interface of the Front part `https://caspermetrics.io/api` can give some insight on the data structure and how to make queries.
 Admin part is makes requests to the protected API endpoints. It has possibilities to find and approve transactions that were unlocked as well as changing the amount of locked Validators.
 
 ## Prerequisites
@@ -17,12 +17,12 @@ Please make sure you have the following installed:
 - Redis (default port, no password)
 
 Please pre-create a database and a user.
-Create .env file with all connection parameters.
-Carefully review the example.env with the instructions.
+Create `.env` file with all connection parameters.
+Carefully review the `example.env` with the instructions.
 Database structure will be created when running 'migrate' commands.
 
 
-App has documented, public enpoints for the Front App that can be observed here in action:
+App has documented public endpoints for the Front App that can be observed here in action:
 https://caspermetrics.io
 
 It can be also used as an API for any service that needs this data.
@@ -33,7 +33,9 @@ https://admin.caspermetrics.io
 
 API, Public Front and Admin Front are now three separate apps, living in different repositories:
 
-
+https://github.com/a3mc/Casper-Metrics
+https://github.com/a3mc/Casper-Metrics-Front
+https://github.com/a3mc/Caper-Metrics-Admin
 
 Once you have all set up, install the app.
 
@@ -129,15 +131,15 @@ unnecessary code duplication and overlapping.
 
 ## Security considerations
 
-Public enpoints are read-only, so unless there's anything that can compromise db access, it should be safe. Nevertheless, please kindly report any issues or doubts in the Github sections of this repository and they'll be addressed ASAP.
+Public endpoints are read-only, so unless there's anything that can compromise db access, it should be safe. Nevertheless, please kindly report any issues or doubts in the Github sections of this repository and they'll be addressed ASAP.
 
-Admin part is more sensitive, as it allows writing to db. It is covered with lots of checks to prevent unauthorised access.
+Admin part is more sensitive, as it allows writing to db. It is covered with lots of checks ant tests to prevent unauthorised access.
 
 ### Admin role
 
 There are three roles for the admin area.
 
-The first logged in user (see `example.env`) gets the Administrator role and can invite new users.
+The first logged-in user (see `example.env`) gets the Administrator role and can invite new users.
 
 Once a new user is invited (via link in the email) - they first have to set up their password and 2FA before they can log in.
 New users get a "Viewer" role by default, meaning that they can see everything (except the users list) but can't take any action.
@@ -148,7 +150,7 @@ The only difference between "Editors" and "Administrators" is that the latter ca
 ## Documentation
 
 Most of the code is self-explanatory, and swagger interfaces can give you some insight how to work with the enpoints.
-We've added more comments in the difficult parts of the code and we are preparing a full documentation that will be released as a part of Milestone 3.
+We've added more comments in the difficult parts of the code, and we are preparing a full documentation that will be released as a part of Milestone 3.
 
 ## Contributing
 
