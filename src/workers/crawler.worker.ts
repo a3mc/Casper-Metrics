@@ -1,5 +1,6 @@
 import { service } from '@loopback/core';
 import * as async from 'async';
+import dotenv from 'dotenv';
 import { MetricsDbDataSource } from '../datasources';
 import { logger } from '../logger';
 import {
@@ -11,12 +12,13 @@ import {
 } from '../repositories';
 import { CirculatingService, CrawlerService, RedisService } from '../services';
 
+dotenv.config();
 
 // The purpose of this worker is to help the application to crawl blocks faster.
 // There's some flexibility how many workers can be launched. They rely on PM2 to manage them
 // and on Redis for internal communication. Using that boosts the crawling speed when catch up is needed.
 export class CrawlerWorker {
-	private _parallelLimit = 200; // That boost IO to launch a few task in parallel. Can be adjusted depending on the server abilities.
+	private _parallelLimit = process.env.CRAWLER_PARALLEL_LIMIT ? Number( process.env.CRAWLER_PARALLEL_LIMIT ) : 1;
 	private _asyncQueue: any = [];
 	private _isCrawling = false;
 
