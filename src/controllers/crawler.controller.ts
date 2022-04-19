@@ -150,7 +150,7 @@ export class CrawlerController {
 				this.queuedBlocks,
 				this.errorBlocks,
 			);
-		}, 30000 );
+		}, 10000 );
 	}
 
 	// Blocks are crawled asynchronously, in random order. But some data in Eras need the to be in the order.
@@ -201,6 +201,6 @@ export class CrawlerController {
 		clearTimeout( this.crawlerTimer );
 		this.crawlerTimer = setTimeout( () => {
 			this.crawl();
-		}, 10000 );
+		}, 5000 );
 	}
 }
