@@ -18,7 +18,11 @@ dotenv.config();
 // There's some flexibility how many workers can be launched. They rely on PM2 to manage them
 // and on Redis for internal communication. Using that boosts the crawling speed when catch up is needed.
 export class CrawlerWorker {
-	private _parallelLimit = 100;
+	// Depending on the network it can allow to boost io in parallel
+	// Some internet providers may limit the traffic, and it might not work well with the default setting.
+	// In that case you can set it to 1 that will slow down the crawling but will make it more stable.
+	// Values higher than 200 give too much load on RPC servers, so it's easy to hit the limit rate	.
+	private _parallelLimit = 150;
 	private _asyncQueue: any = [];
 	private _isCrawling = false;
 
@@ -39,6 +43,7 @@ export class CrawlerWorker {
 								result = false;
 								this.redisService.pub.client.publish( 'error', String( blockHeight ) );
 							} );
+
 						if ( result ) {
 							this.redisService.pub.client.publish( 'done', String( blockHeight ) );
 						}
