@@ -18,7 +18,7 @@ dotenv.config();
 // There's some flexibility how many workers can be launched. They rely on PM2 to manage them
 // and on Redis for internal communication. Using that boosts the crawling speed when catch up is needed.
 export class CrawlerWorker {
-	private _parallelLimit = process.env.CRAWLER_PARALLEL_LIMIT ? Number( process.env.CRAWLER_PARALLEL_LIMIT ) : 1;
+	private _parallelLimit = 1;
 	private _asyncQueue: any = [];
 	private _isCrawling = false;
 
