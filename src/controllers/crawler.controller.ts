@@ -22,7 +22,7 @@ export class CrawlerController {
 	private lastBlockHeight: number;
 	private finishedWorkers: number;
 	private workers: number[] = [];
-	private blocksBatchSize = 50000;
+	private blocksBatchSize = 20000;
 	private meterInterval: NodeJS.Timeout;
 	private crawlerTimer: NodeJS.Timeout;
 
@@ -144,13 +144,13 @@ export class CrawlerController {
 	// A helper to see the crawling process, when crawling is started from an empty database or after a long pause.
 	private _setCrawlingMeter(): void {
 		this.meterInterval = setInterval( () => {
-			logger.debug(
+			logger.info(
 				'Crawled %d of %d blocks with %d errors',
 				this.processedBlocks,
 				this.queuedBlocks,
 				this.errorBlocks,
 			);
-		}, 60000 );
+		}, 30000 );
 	}
 
 	// Blocks are crawled asynchronously, in random order. But some data in Eras need the to be in the order.
