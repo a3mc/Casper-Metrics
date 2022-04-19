@@ -43,6 +43,7 @@ export class CrawlerService {
 	) {
 	}
 
+	// We get only RPC nodes that return the same last block height.
 	public async getLastBlockHeight(): Promise<number> {
 		await this._resetNetworks();
 		logger.debug( 'Trying to init %d nodes', this._activeRpcNodes.length );
@@ -84,6 +85,7 @@ export class CrawlerService {
 		return maxLastBlock;
 	}
 
+	// Crawl for a block and its deploys.
 	public async createBlock( blockHeight: number ): Promise<void> {
 		if ( await this.redisService.client.getAsync( 'b' + String( blockHeight ) ) ) {
 			throw new Error( 'Block ' + blockHeight + ' already crawled' );
@@ -193,6 +195,7 @@ export class CrawlerService {
 		await this.redisService.client.setAsync( 'b' + String( blockHeight ), 1 );
 	}
 
+	// Once we have all blocks in a batch, we can create eras.
 	public async calcBlocksAndEras(): Promise<void> {
 
 		await this.redisService.client.setAsync( 'calculating', 1 );
@@ -262,6 +265,7 @@ export class CrawlerService {
 		}
 	}
 
+	// Get a list of RPC nodes.
 	public async setCasperServices(): Promise<void> {
 		this._casperServices = [];
 		for ( const ip of await this._retrieveActiveRPCNodes() ) {
@@ -280,6 +284,7 @@ export class CrawlerService {
 		}
 	}
 
+	// Find a relative depth from Genesis vaults.
 	private async _updateBlockTransfers( block: Block ): Promise<void> {
 		const blockTransfers: Transfer[] = await this.transferRepository.find( {
 			where: {
@@ -338,6 +343,7 @@ export class CrawlerService {
 		}
 	}
 
+	// Check if RPC node can be used for crawling.
 	private async _testRpcNode( ip: string ): Promise<void> {
 		const casperServiceSet: CasperServiceSet = {
 			node: new CasperServiceByJsonRPC(
@@ -445,18 +451,20 @@ export class CrawlerService {
 		return rpcs[0];
 	}
 
+	// Make sure RPC node responds in at least 3 seconds.
 	private async _getLastBlockWithTimeout( node: CasperServiceByJsonRPC ): Promise<any> {
 		const timer = new Timeout();
 		try {
 			return await Promise.race( [
 				node.getLatestBlockInfo(),
-				timer.set( 5000, 'Timeout' ),
+				timer.set( 3000, 'Timeout' ),
 			] );
 		} finally {
 			timer.clear();
 		}
 	}
 
+	// prevBlock is a Switch block
 	private async _createNewEra( prevBlock: Block, block: Block ): Promise<void> {
 		if ( !await this.eraRepository.exists( block.eraId ) ) {
 
@@ -484,6 +492,7 @@ export class CrawlerService {
 		}
 	}
 
+	// Once we have switch block we can update completed Era with the details
 	private async _updateCompletedEra( switchBlock: Block, eraBlocks: Block[] ): Promise<void> {
 		let stakedInfo: BlockStakeInfo = {
 			amount: BigInt( 0 ),
@@ -534,6 +543,7 @@ export class CrawlerService {
 		}
 	}
 
+	// As it's a 'special' Era it is here as a separate method.
 	private async _createGenesisEra( block: Block ): Promise<void> {
 		logger.debug( 'Creating genesis era' );
 		await this.eraRepository.create( {
@@ -554,6 +564,7 @@ export class CrawlerService {
 		} );
 	}
 
+	// Call block for a total supply.
 	private async _getTotalSupply( stateRootHash: string ): Promise<bigint> {
 		const service = await this._getCasperService();
 		const blockState: any = await service.node.getBlockState(
@@ -576,6 +587,7 @@ export class CrawlerService {
 		return validatorWeights;
 	}
 
+	// We try to find HEX account values here when possible.
 	private async _processTransfers( transferHashes: string[], blockHeight: number, eraId: number ): Promise<void> {
 
 		for ( const hash of transferHashes ) {
@@ -654,6 +666,7 @@ export class CrawlerService {
 		}
 	}
 
+	// Count staked/unbonded
 	private async _processDeploys( deploy_hashes: string[] ): Promise<BlockStakeInfo> {
 		let staked: BlockStakeInfo = {
 			amount: BigInt( 0 ),
@@ -732,14 +745,11 @@ export class CrawlerService {
 		return staked;
 	}
 
-	private _nominate( amount: bigint ): bigint {
-		return amount * BigInt( 1000000000 );
-	}
-
 	private _denominate( amount: bigint ): bigint {
 		return amount / BigInt( 1000000000 );
 	}
 
+	// A helper for a delay.
 	private _sleep( ms: number ): Promise<any> {
 		return new Promise( ( resolve ) => setTimeout( resolve, ms ) );
 	}

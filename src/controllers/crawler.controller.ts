@@ -17,12 +17,13 @@ export class CrawlerController {
 	private lastCalculated: number;
 	private queuedBlocks: number;
 	private processedBlocks: number;
-	private lastProcessedBlocks: number;
 	private errorBlocks: number;
 	private lastBlockHeight: number;
 	private finishedWorkers: number;
 	private workers: number[] = [];
-	private blocksBatchSize = 20000;
+	// How many blocks to crawl in a batch
+	// It may slow down in the end of the batch due to lots of deploys or slow RPC nodes.
+	private blocksBatchSize = 50000;
 	private meterInterval: NodeJS.Timeout;
 	private crawlerTimer: NodeJS.Timeout;
 
@@ -201,6 +202,6 @@ export class CrawlerController {
 		clearTimeout( this.crawlerTimer );
 		this.crawlerTimer = setTimeout( () => {
 			this.crawl();
-		}, 5000 );
+		}, 10000 );
 	}
 }
