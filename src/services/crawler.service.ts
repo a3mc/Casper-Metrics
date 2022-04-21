@@ -27,11 +27,11 @@ export interface CasperServiceSet {
 export class CrawlerService {
 	private _casperServices: CasperServiceSet[] = [];
 	private _activeRpcNodes: string[] = [];
-	private _minRpcNodes = 10;
-	private _calcBatchSize = 25000;
-	private _maxRpcTestTimeout = 1500; // Don't use nodes that respond slower
-	private _queryTimeout = 60000; // Throw an error if a query takes longer
-	private _transfersParallelLimit = 10;
+	private _minRpcNodes = Number( process.env.MIN_RPC_NODES || 10 );
+	private _calcBatchSize = Number( process.env.CALC_BATCH_SIZE || 25000 );
+	private _maxRpcTestTimeout = Number( process.env.MAX_RPC_TEST_TIMEOUT || 1500 ); // Don't use nodes that respond slower
+	private _queryTimeout = Number( process.env.QUERY_TIMEOUT || 60000 ); // Throw an error if a query takes longer
+	private _transfersParallelLimit = Number( process.env.TRANSFERS_PARALLEL_LIMIT || 10 );
 
 	constructor(
 		@repository( EraRepository ) public eraRepository: EraRepository,

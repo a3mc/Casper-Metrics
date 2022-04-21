@@ -25,7 +25,7 @@ export class CrawlerController {
 	private workers: number[] = [];
 	// How many blocks to crawl in a batch
 	// It may slow down in the end of the batch if there are a lot of transfers.
-	private blocksBatchSize = 10000;
+	private blocksBatchSize = Number( process.env.BLOCKS_BATCH_SIZE || 10000 );
 	private meterInterval: NodeJS.Timeout;
 	private crawlerTimer: NodeJS.Timeout;
 

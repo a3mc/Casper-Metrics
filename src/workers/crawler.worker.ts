@@ -19,7 +19,7 @@ dotenv.config();
 // and on Redis for internal communication. Using that boosts the crawling speed when catch up is needed.
 export class CrawlerWorker {
 	// Depending on the network it can allow to boost io in parallel
-	private _parallelLimit = 100;
+	private _parallelLimit = Number( process.env.PARALLEL_LIMIT || 100 );
 	private _asyncQueue: any = [];
 	private _isCrawling = false;
 
