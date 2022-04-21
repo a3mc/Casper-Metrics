@@ -1,7 +1,9 @@
 import { lifeCycleObserver, service } from '@loopback/core';
+import { repository } from '@loopback/repository';
 import dotenv from 'dotenv';
 import { finished } from 'stream';
 import { logger } from '../logger';
+import { BlockRepository, TransferRepository } from '../repositories';
 import { CrawlerService, GeodataService, PriceService, RedisService } from '../services';
 
 dotenv.config();
@@ -22,8 +24,8 @@ export class CrawlerController {
 	private finishedWorkers: number;
 	private workers: number[] = [];
 	// How many blocks to crawl in a batch
-	// It may slow down in the end of the batch due to lots of deploys or slow RPC nodes.
-	private blocksBatchSize = 50000;
+	// It may slow down in the end of the batch if there are a lot of transfers.
+	private blocksBatchSize = 10000;
 	private meterInterval: NodeJS.Timeout;
 	private crawlerTimer: NodeJS.Timeout;
 
@@ -32,6 +34,8 @@ export class CrawlerController {
 		@service( RedisService ) private redisService: RedisService,
 		@service( GeodataService ) private geodataService: GeodataService,
 		@service( PriceService ) private priceService: PriceService,
+		@repository( BlockRepository ) public blocksRepository: BlockRepository,
+		@repository( TransferRepository ) public transferRepository: TransferRepository,
 	) {
 		// Establish a connection with separate workers that help to crawl blocks as a separate process.
 		this.redisService.sub.client.on( 'message', ( channel: string, message: string ) => {
@@ -144,12 +148,14 @@ export class CrawlerController {
 
 	// A helper to see the crawling process, when crawling is started from an empty database or after a long pause.
 	private _setCrawlingMeter(): void {
-		this.meterInterval = setInterval( () => {
-			logger.info(
-				'Crawled %d of %d blocks with %d errors',
+		this.meterInterval = setInterval( async () => {
+			logger.debug(
+				'Crawled %d of %d blocks with %d errors. Blocks: %d, Transfers: %d',
 				this.processedBlocks,
 				this.queuedBlocks,
 				this.errorBlocks,
+				( await this.blocksRepository.count() ).count,
+				( await this.transferRepository.count() ).count
 			);
 		}, 10000 );
 	}
@@ -202,6 +208,6 @@ export class CrawlerController {
 		clearTimeout( this.crawlerTimer );
 		this.crawlerTimer = setTimeout( () => {
 			this.crawl();
-		}, 10000 );
+		}, 5000 );
 	}
 }

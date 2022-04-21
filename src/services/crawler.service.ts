@@ -21,7 +21,6 @@ export interface CasperServiceSet {
 	node: CasperServiceByJsonRPC;
 	ip: string;
 	lastQueried: number;
-	banLevel?: number;
 }
 
 @injectable( { scope: BindingScope.TRANSIENT } )
@@ -29,8 +28,10 @@ export class CrawlerService {
 	private _casperServices: CasperServiceSet[] = [];
 	private _activeRpcNodes: string[] = [];
 	private _minRpcNodes = 10;
-	private _maxRpcBanLevel = 100;
-	private _calcBatchSize = 50000;
+	private _calcBatchSize = 25000;
+	private _maxRpcTestTimeout = 1500; // Don't use nodes that respond slower
+	private _queryTimeout = 60000; // Throw an error if a query takes longer
+	private _transfersParallelLimit = 10;
 
 	constructor(
 		@repository( EraRepository ) public eraRepository: EraRepository,
@@ -93,10 +94,10 @@ export class CrawlerService {
 		await this.transferRepository.deleteAll( { blockHeight: blockHeight } );
 
 		const service = await this._getCasperService();
-		const blockInfo: any = await service.node.getBlockInfoByHeight( blockHeight )
+		const blockInfo: any = await this._withTimeout( service.node, 'getBlockInfoByHeight', [blockHeight] )
 			.catch( async () => {
 				await this._banService( service );
-				throw new Error( 'Cant get block info in createBlock' );
+				throw new Error();
 			} );
 
 		const stateRootHash: string = blockInfo.block.header.state_root_hash;
@@ -142,18 +143,20 @@ export class CrawlerService {
 			);
 			const client = new Client( new RequestManager( [transport] ) );
 
-			const result = await client.request( {
-				method: 'chain_get_era_info_by_switch_block',
-				params: {
-					block_identifier: {
-						Hash: blockInfo.block.hash,
+			const result = await this._withTimeout( client, 'request', [
+				{
+					method: 'chain_get_era_info_by_switch_block',
+					params: {
+						block_identifier: {
+							Hash: blockInfo.block.hash,
+						},
 					},
 				},
-			} )
-				.catch( error => {
-					this._banService( service );
-					throw new Error( error );
-				} );
+			] ).catch( async () => {
+				await this._banService( service );
+				throw new Error();
+			} );
+
 			const allocations = result.era_summary.stored_value.EraInfo.seigniorage_allocations;
 
 			allocations.forEach( ( allocation: any ) => {
@@ -270,7 +273,6 @@ export class CrawlerService {
 		this._casperServices = [];
 		for ( const ip of await this._retrieveActiveRPCNodes() ) {
 			const lastQueried: string = await this.redisService.client.getAsync( 'rpc' + ip );
-			const banned: string = await this.redisService.client.getAsync( 'ban' + ip );
 			if ( lastQueried ) {
 				this._casperServices.push( {
 					node: new CasperServiceByJsonRPC(
@@ -278,7 +280,6 @@ export class CrawlerService {
 					),
 					ip: ip,
 					lastQueried: parseInt( lastQueried ),
-					banLevel: parseInt( banned ?? '0' ),
 				} );
 			}
 		}
@@ -396,7 +397,7 @@ export class CrawlerService {
 					status: 'STATUS_AVAILABLE',
 					version: lastVersionResult[0].version,
 				},
-				fields: ['ip']
+				fields: ['ip'],
 			} );
 
 			if ( rpcs && rpcs.length ) {
@@ -411,21 +412,16 @@ export class CrawlerService {
 	// Add RPC service to the list
 	private async _addService( service: CasperServiceSet ): Promise<void> {
 		await this.redisService.client.setAsync( 'rpc' + service.ip, moment().valueOf().toString() );
-		await this.redisService.client.setAsync( 'ban' + service.ip, '0' );
 	}
 
 	// Mark RPC service as having issues
 	private async _banService( service: CasperServiceSet ): Promise<void> {
-		let banLevel = Number( await this.redisService.client.getAsync( 'ban' + service.ip ) );
-		banLevel++;
-		await this.redisService.client.setAsync( 'ban' + service.ip, banLevel.toString() );
-		logger.debug( 'Banned %s to %d level', service.ip, banLevel );
+		// TODO - rate nodes performance, to exclude slow nodes in next batches
 	}
 
 	// Remove RPC service from the list
 	private async _deleteService( ip: String ): Promise<void> {
 		await this.redisService.client.deleteAsync( 'rpc' + ip );
-		await this.redisService.client.deleteAsync( 'ban' + ip );
 	}
 
 	// Use servers that didn't respond in time or had errors more rare.
@@ -436,12 +432,8 @@ export class CrawlerService {
 		const rpcs: CasperServiceSet[] = [];
 		for ( const service of this._casperServices ) {
 			const lastQueried: string = await this.redisService.client.getAsync( 'rpc' + service.ip );
-			const banned: string = await this.redisService.client.getAsync( 'ban' + service.ip );
 			service.lastQueried = parseInt( lastQueried );
-			service.banLevel = parseInt( banned );
-			if ( service.banLevel < this._maxRpcBanLevel ) {
-				rpcs.push( service );
-			}
+			rpcs.push( service );
 		}
 
 		rpcs.sort( ( a: CasperServiceSet, b: CasperServiceSet ) => {
@@ -451,13 +443,26 @@ export class CrawlerService {
 		return rpcs[0];
 	}
 
-	// Make sure RPC node responds in at least 3 seconds.
+	// Make sure RPC node responds within defined time.
 	private async _getLastBlockWithTimeout( node: CasperServiceByJsonRPC ): Promise<any> {
 		const timer = new Timeout();
 		try {
 			return await Promise.race( [
 				node.getLatestBlockInfo(),
-				timer.set( 3000, 'Timeout' ),
+				timer.set( this._maxRpcTestTimeout, 'Timeout' ),
+			] );
+		} finally {
+			timer.clear();
+		}
+	}
+
+	// Throw an error if request takes too much time.
+	private async _withTimeout( call: any, method: string, param: any[] ): Promise<any> {
+		const timer = new Timeout();
+		try {
+			return await Promise.race( [
+				call[method]( ...param ),
+				timer.set( this._queryTimeout, 'Timeout' ),
 			] );
 		} finally {
 			timer.clear();
@@ -567,10 +572,12 @@ export class CrawlerService {
 	// Call block for a total supply.
 	private async _getTotalSupply( stateRootHash: string ): Promise<bigint> {
 		const service = await this._getCasperService();
-		const blockState: any = await service.node.getBlockState(
-			stateRootHash,
-			networks.contract_uref,
-			[],
+
+		const blockState: any = await this._withTimeout( service.node, 'getBlockState', [
+				stateRootHash,
+				networks.contract_uref,
+				[],
+			],
 		).catch( async () => {
 			await this._banService( service );
 			throw new Error();
@@ -590,80 +597,85 @@ export class CrawlerService {
 	// We try to find HEX account values here when possible.
 	private async _processTransfers( transferHashes: string[], blockHeight: number, eraId: number ): Promise<void> {
 
+		const asyncQueue = [];
 		for ( const hash of transferHashes ) {
-			const service = await this._getCasperService();
-			const deployResult: any = await service.node.getDeployInfo( hash )
-				.catch( async ( error ) => {
-					await this._banService( service );
-					throw new Error( error );
-				} );
+			asyncQueue.push( async () => {
+				const service = await this._getCasperService();
+				const deployResult: any = await this._withTimeout( service.node, 'getDeployInfo', [hash] )
+					.catch( async () => {
+						await this._banService( service );
+						throw new Error();
+					} );
 
-			for ( const executionResult of deployResult.execution_results ) {
-				if ( executionResult?.result?.Success?.effect ) {
-					for ( const transform of executionResult.result.Success.effect.transforms ) {
-						const transformKey = transform.key.toLowerCase();
-						const successTransfers = executionResult.result.Success.transfers.map(
-							( item: string ) => item.toLowerCase(),
-						);
-						if (
-							transform.transform.WriteTransfer &&
-							successTransfers.includes( transformKey )
-						) {
-							const transfer = transform.transform.WriteTransfer;
-							let knownHex = '';
-							let knownAccount = await this.knownAccountRepository.findOne( {
-								where: {
-									hash: transfer.to,
-									hex: {
-										neq: '',
+				for ( const executionResult of deployResult.execution_results ) {
+					if ( executionResult?.result?.Success?.effect ) {
+						for ( const transform of executionResult.result.Success.effect.transforms ) {
+							const transformKey = transform.key.toLowerCase();
+							const successTransfers = executionResult.result.Success.transfers.map(
+								( item: string ) => item.toLowerCase(),
+							);
+							if (
+								transform.transform.WriteTransfer &&
+								successTransfers.includes( transformKey )
+							) {
+								const transfer = transform.transform.WriteTransfer;
+								let knownHex = '';
+								let knownAccount = await this.knownAccountRepository.findOne( {
+									where: {
+										hash: transfer.to,
+										hex: {
+											neq: '',
+										},
 									},
-								},
-							} ).catch();
+								} ).catch();
 
-							if ( knownAccount ) {
-								knownHex = knownAccount.hex || '';
-							}
-
-							knownAccount = await this.knownAccountRepository.findOne( {
-								where: {
-									hash: transfer.from,
-									hex: {
-										neq: '',
-									},
-								},
-							} ).catch();
-
-							if ( !knownAccount ) {
-								try {
-									await this.knownAccountRepository.create( {
-										hash: transfer.from,
-										hex: deployResult.deploy.header.account,
-									} );
-								} catch ( error ) {
-									logger.debug( error );
+								if ( knownAccount ) {
+									knownHex = knownAccount.hex || '';
 								}
-							}
 
-							await this.transferRepository.create( {
-								timestamp: deployResult.deploy.header.timestamp,
-								blockHeight: blockHeight,
-								depth: 0,
-								eraId: eraId,
-								deployHash: transfer.deploy_hash,
-								from: deployResult.deploy.header.account,
-								fromHash: transfer.from,
-								toHash: transfer.to,
-								to: knownHex,
-								amount: transfer.amount,
-								denomAmount: Math.round(
-									Number( this._denominate( BigInt( transfer.amount ) ) )
-								),
-							} );
+								knownAccount = await this.knownAccountRepository.findOne( {
+									where: {
+										hash: transfer.from,
+										hex: {
+											neq: '',
+										},
+									},
+								} ).catch();
+
+								if ( !knownAccount ) {
+									try {
+										await this.knownAccountRepository.create( {
+											hash: transfer.from,
+											hex: deployResult.deploy.header.account,
+										} );
+									} catch ( error ) {
+										logger.debug( error );
+									}
+								}
+
+								await this.transferRepository.create( {
+									timestamp: deployResult.deploy.header.timestamp,
+									blockHeight: blockHeight,
+									depth: 0,
+									eraId: eraId,
+									deployHash: transfer.deploy_hash,
+									from: deployResult.deploy.header.account,
+									fromHash: transfer.from,
+									toHash: transfer.to,
+									to: knownHex,
+									amount: transfer.amount,
+									denomAmount: Math.round(
+										Number( this._denominate( BigInt( transfer.amount ) ) ),
+									),
+								} );
+							}
 						}
 					}
 				}
-			}
+			} );
 		}
+
+		await async.parallelLimit( asyncQueue, this._transfersParallelLimit );
 	}
 
 	// Count staked/unbonded
@@ -673,75 +685,81 @@ export class CrawlerService {
 			delegated: BigInt( 0 ),
 			undelegated: BigInt( 0 ),
 		};
+
+		const asyncQueue = [];
 		for ( const hash of deploy_hashes ) {
-			const service = await this._getCasperService();
-			const deployResult: any = await service.node.getDeployInfo( hash )
-				.catch( async () => {
-					await this._banService( service );
-					throw new Error();
-				} );
+			asyncQueue.push( async () => {
+				const service = await this._getCasperService();
+				const deployResult: any = await this._withTimeout( service.node, 'getDeployInfo', [hash] )
+					.catch( async () => {
+						await this._banService( service );
+						throw new Error();
+					} );
 
+				for ( const executionResult of deployResult.execution_results ) {
+					if (
+						executionResult?.result?.Success &&
+						deployResult?.deploy?.session?.ModuleBytes?.args
+					) {
+						const args = deployResult.deploy.session.ModuleBytes.args;
+						let isDelegated = false;
+						let isUndelegated = false;
+						let isDelegateOperation = 0;
+						let isAddBid = 0;
+						let isWithdrawBid = 0;
+						let currentAmount = BigInt( 0 );
 
-			for ( const executionResult of deployResult.execution_results ) {
-				if (
-					executionResult?.result?.Success &&
-					deployResult?.deploy?.session?.ModuleBytes?.args
-				) {
-					const args = deployResult.deploy.session.ModuleBytes.args;
-					let isDelegated = false;
-					let isUndelegated = false;
-					let isDelegateOperation = 0;
-					let isAddBid = 0;
-					let isWithdrawBid = 0;
-					let currentAmount = BigInt( 0 );
+						args.forEach(
+							( arg: any ) => {
+								if ( ['public_key', 'amount', 'delegation_rate'].includes( arg[0] ) ) {
+									isAddBid++;
+								}
+								if ( ['public_key', 'amount', 'unbond_purse'].includes( arg[0] ) ) {
+									isWithdrawBid++;
+								}
+								if ( ['validator', 'amount', 'delegator'].includes( arg[0] ) ) {
+									isDelegateOperation++;
+								}
+								if ( arg[0] === 'amount' ) {
+									currentAmount = BigInt( arg[1].parsed );
+								}
+							},
+						);
 
-					args.forEach(
-						( arg: any ) => {
-							if ( ['public_key', 'amount', 'delegation_rate'].includes( arg[0] ) ) {
-								isAddBid++;
-							}
-							if ( ['public_key', 'amount', 'unbond_purse'].includes( arg[0] ) ) {
-								isWithdrawBid++;
-							}
-							if ( ['validator', 'amount', 'delegator'].includes( arg[0] ) ) {
-								isDelegateOperation++;
-							}
-							if ( arg[0] === 'amount' ) {
-								currentAmount = BigInt( arg[1].parsed );
-							}
-						},
-					);
-
-					if ( isDelegateOperation === 3 ) {
-						if (
-							executionResult.result.Success.effect &&
-							executionResult.result.Success.effect.transforms
-						) {
-							executionResult.result.Success.effect.transforms.forEach(
-								( transform: any ) => {
-									if ( transform.transform.WriteWithdraw ) {
-										isUndelegated = true;
-									}
-								},
-							);
-							if ( !isUndelegated ) {
-								isDelegated = true;
+						if ( isDelegateOperation === 3 ) {
+							if (
+								executionResult.result.Success.effect &&
+								executionResult.result.Success.effect.transforms
+							) {
+								executionResult.result.Success.effect.transforms.forEach(
+									( transform: any ) => {
+										if ( transform.transform.WriteWithdraw ) {
+											isUndelegated = true;
+										}
+									},
+								);
+								if ( !isUndelegated ) {
+									isDelegated = true;
+								}
 							}
 						}
-					}
 
-					if ( isAddBid === 3 || isDelegated ) {
-						staked.amount += currentAmount;
-						staked.delegated += currentAmount;
-					}
+						if ( isAddBid === 3 || isDelegated ) {
+							staked.amount += currentAmount;
+							staked.delegated += currentAmount;
+						}
 
-					if ( isWithdrawBid === 3 || isUndelegated ) {
-						staked.amount -= currentAmount;
-						staked.undelegated += currentAmount;
+						if ( isWithdrawBid === 3 || isUndelegated ) {
+							staked.amount -= currentAmount;
+							staked.undelegated += currentAmount;
+						}
 					}
 				}
-			}
+			} );
 		}
+
+		await async.parallelLimit( asyncQueue, this._transfersParallelLimit );
+
 		return staked;
 	}
 
