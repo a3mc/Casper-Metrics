@@ -43,7 +43,7 @@ API engine is constructed on top of the Loopback framework. Multiple crawler pro
 * Front Functional Description
 * Admin Panel Functional Description
 
-The project was initiated with the proposal [#86](https://portal.devxdao.com/app/proposal/86) and successfully passed [DevDao](https://www.devxdao.com) the pipeline on 9/29/2021
+The project was initiated with the proposal [#86](https://portal.devxdao.com/app/proposal/86) and successfully passed [DevDao](https://www.devxdao.com) pipeline on 9/29/2021
 
 Current development stage: milestone #2
 
