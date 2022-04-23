@@ -29,7 +29,7 @@ All elements are independent and can be deployed separately, depending on the pa
 
 API engine is constructed on top of the Loopback framework. Multiple crawler processes are managed by PM2. MySQL is used as a primary data storage and Redis provides a communication layer between all processes and is used as temporary in-memory storage bringing crawling process to the next level of performance.
 
-[ IMAGE HERE ]
+![Overview](https://github.com/a3mc/Casper-Metrics/blob/master/overview.jpg)
 
 ### Documentation:
 
