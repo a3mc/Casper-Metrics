@@ -77,7 +77,7 @@ open_files_limit             = 5355
 EOF
 ```
 
-MuSQL container will be deployed with configuration file created above, additionally need to create dedicated _user_ and dedicated _database_, all this variables are relative and can be freely adjusted, please refer to [example.env]() if necessary. In our example we set root password to `password123`, database `mainnet` will be created, user `apiuser` will be created and will control `mainnet` database accordingly, where also password set for user `apiuser` which is in our example same as root password `password123`. Oneliner for simplicity:
+MySQL container will be deployed with configuration file created above, additionally need to create dedicated _user_ and dedicated _database_, all this variables are relative and can be freely adjusted, please refer to [example.env]() if necessary. In our example we set root password to `password123`, database `mainnet` will be created, user `apiuser` will be created and will control `mainnet` database accordingly, where also password set for user `apiuser` which is in our example same as root password `password123`. Oneliner for simplicity:
 
 ```bash
   $ docker run --name casper-metrics-mysql -e MYSQL_ROOT_PASSWORD=password123 -e MYSQL_DATABASE=mainnet -e MYSQL_USER=apiuser -e MYSQL_PASSWORD=password123 --restart=always -d -p 0.0.0.0:3306:3306/tcp --volume=/$HOME/.mysql.conf/casper-metrics-mysql/conf.d:/etc/mysql/conf.d mysql:latest
