@@ -1,5 +1,5 @@
 import { repository } from '@loopback/repository';
-import { get, response } from '@loopback/rest';
+import { get, oas, OperationVisibility, response } from '@loopback/rest';
 import { PeersRepository } from '../repositories';
 
 export class HealthController {
@@ -15,6 +15,7 @@ export class HealthController {
 		return 'I\'m fine!';
 	}
 
+	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@get( '/' )
 	@response( 200 )
 	async welcome(): Promise<string> {
