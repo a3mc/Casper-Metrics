@@ -1,6 +1,6 @@
 import { Filter, repository } from '@loopback/repository';
 import { get, getModelSchemaRef, param, response } from '@loopback/rest';
-import { NotFound } from '../errors/errors';
+import { IncorrectData, NotFound } from '../errors/errors';
 import { Era } from '../models';
 import { EraRepository } from '../repositories';
 
@@ -112,7 +112,9 @@ export class EraController {
 			filter.skip = skip;
 		}
 
-		return this.eraRepository.find( filter );
+		return this.eraRepository.find( filter ).catch( () => {
+			throw new IncorrectData( 'Incorrect query' );
+		} );
 	}
 
 	private _calcSupplyQueryFilter(
