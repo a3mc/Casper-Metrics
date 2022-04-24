@@ -81,7 +81,7 @@ export class EraController {
 	@response( 200, {
 		description: `Last Completed Era metrics when called without params.
         Can be queried by either "eraId", "blockHeight" or "timestamp" (e.g. "2021-04-09T09:31:36Z").
-        Order example: "id DESC". Max limit is 1000;
+        Order example: "id DESC". Max limit is 10000, but it's not recommended to query more than 100 records at once in this Swagger UI.
         `,
 		content: {
 			'application/json': {
