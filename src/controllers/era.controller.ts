@@ -101,7 +101,7 @@ export class EraController {
 		@param.query.string( 'skip' ) skip?: number,
 	): Promise<Era[]> {
 		let filter: Filter<Era> = {
-			// TODO: Define a max limit.
+			// TODO: Rename id to eraId for consistency.
 			limit: limit ? Math.min( limit, 10000 ) : 1,
 			order: order ? order : ['id DESC'],
 			skip: ( id !== undefined || blockHeight !== undefined || timestamp ) ? 0 : 1,
