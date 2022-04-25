@@ -103,7 +103,7 @@ Deploy Redis:
   $ docker run --name casper-metrics-redis --restart=always -d -p 127.0.0.1:6379:6379 redis
 ```
 
-We provide relatively fresh ( block 729820 ) database dump: mysqldump_25_Apr_2022_15_14_35.sql
+We provide relatively fresh ( block 729820 ) database dump: [mysqldump_25_Apr_2022_15_14_35.sql](http://161.97.84.146/mysqldump_25_Apr_2022_15_14_35.sql)
 
 In any case, where we need to import database, Redis should be flushed to avoid calculation disorder:
 
