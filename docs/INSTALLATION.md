@@ -52,16 +52,17 @@ Build latest redis-cli: ( we use a default port here )
   $ chmod 755 /usr/local/bin/redis-cli
 ```
 
-Create folder for MySQL configuration:
+Create folder for MySQL configuration and storage:
 
 ```bash
   $ mkdir -p $HOME/.mysql.conf/casper-metrics-mysql/conf.d
+  $ mkdir -p $HOME/.mysql/casper-metrics-mysql/db
 ```
 
 Create and populate MySQL configuration file: _( we will point docker here )_
 
 ```bash
-cat <<EOF > $HOME/.mysql.conf/casper-metrics-mysql/conf.d/my.cnf
+cat <<EOF > $HOME/.mysql/casper-metrics-mysql/conf.d/my.cnf
 [mysqld]
 user                         = mysql
 log_error = /tmp/error.log
@@ -80,7 +81,7 @@ EOF
 MySQL container will be deployed with configuration file created above, additionally need to create dedicated _user_ and dedicated _database_, all this variables are relative and can be freely adjusted, please refer to [example.env]() if necessary. In our example we set root password to `password123`, database `mainnet` will be created, user `apiuser` will be created and will control `mainnet` database accordingly, where also password set for user `apiuser` which is in our example same as root password `password123`. Oneliner for simplicity:
 
 ```bash
-  $ docker run --name casper-metrics-mysql -e MYSQL_ROOT_PASSWORD=password123 -e MYSQL_DATABASE=mainnet -e MYSQL_USER=apiuser -e MYSQL_PASSWORD=password123 --restart=always -d -p 0.0.0.0:3306:3306/tcp --volume=/$HOME/.mysql.conf/casper-metrics-mysql/conf.d:/etc/mysql/conf.d mysql:latest
+  $ docker run --name casper-metrics-mysql -e MYSQL_ROOT_PASSWORD=password123 -e MYSQL_DATABASE=mainnet -e MYSQL_USER=apiuser -e MYSQL_PASSWORD=password123 --restart=always -d -p 0.0.0.0:3306:3306/tcp --volume=/$HOME/.mysql/casper-metrics-mysql/conf.d:/etc/mysql/conf.d --volume=/$HOME/.mysql/casper-metrics-mysql/db:/var/lib/mysql mysql:latest
 ```
 
 Check if database ready, should see _250_ as set in configuration:
@@ -89,16 +90,52 @@ Check if database ready, should see _250_ as set in configuration:
   $ mysql -u apiuser -p -h 127.0.0.1 -P 3306 -e 'show global variables like "max_connections"';
 ```
 
-Switch auth method for user `apiuser`, we need this to ensure password authentification works as expected:
+Switch auth method for users, we need this to ensure password authentification works as expected:
 
 ```bash
   $ mysql -u root -p -h 127.0.0.1 -P 3306 -e "ALTER USER 'apiuser'@'%' IDENTIFIED WITH mysql_native_password BY 'password123';"
+  $ mysql -u root -p -h 127.0.0.1 -P 3306 -e "ALTER USER 'root'@'%'    IDENTIFIED WITH mysql_native_password BY 'password123';"
 ```
 
 Deploy Redis:
 
 ```bash
   $ docker run --name casper-metrics-redis --restart=always -d -p 127.0.0.1:6379:6379 redis
+```
+
+We provide relatively fresh ( block 729820 ) database dump: mysqldump_25_Apr_2022_15_14_35.sql
+
+In any case, where we need to import database, Redis should be flushed to avoid calculation disorder:
+
+Standard db import sequence:
+
+* pm2 stop all
+* flush Redis
+* Import database
+
+#### Import database
+
+* flush Redis
+
+```bash
+  $ redis-cli -n 0 flushdb
+```
+
+Download database dump:
+
+```bash
+  $ cd ~ && wget http://path/to/mysqldump_25_Apr_2022_15_14_35.sql
+```
+
+Import in to previously created `mainnet` db:
+
+```bash
+  $ docker exec -i casper-metrics-mysql mysql -u"root" -p"password123" mainnet < mysqldump_25_Apr_2022_15_14_35.sql
+```
+Check last block ( 729820 ) and availability:
+
+```bash
+  $ mysql -u apiuser -p -h 127.0.0.1 -P 3306 -e 'use mainnet; select id from Block ORDER BY id desc LIMIT 1';
 ```
 
 Adjust NodeJS version, currently _v16.14.2_, in this example we will use [nvm script](https://github.com/nvm-sh/nvm):
