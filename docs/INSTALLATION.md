@@ -124,7 +124,7 @@ Standard db import sequence:
 Download database dump:
 
 ```bash
-  $ cd ~ && wget http://path/to/mysqldump_25_Apr_2022_15_14_35.sql
+  $ cd ~ && wget http://161.97.84.146/mysqldump_25_Apr_2022_15_14_35.sql
 ```
 
 Import in to previously created `mainnet` db:
