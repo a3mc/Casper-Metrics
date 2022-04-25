@@ -3,7 +3,7 @@ import { repository } from '@loopback/repository';
 import dotenv from 'dotenv';
 import { finished } from 'stream';
 import { logger } from '../logger';
-import { BlockRepository, TransferRepository } from '../repositories';
+import { BlockRepository, EraRepository, TransferRepository } from '../repositories';
 import { CrawlerService, GeodataService, PriceService, RedisService } from '../services';
 
 dotenv.config();
@@ -35,6 +35,7 @@ export class CrawlerController {
 		@service( GeodataService ) private geodataService: GeodataService,
 		@service( PriceService ) private priceService: PriceService,
 		@repository( BlockRepository ) public blocksRepository: BlockRepository,
+		@repository( EraRepository ) public eraRepository: EraRepository,
 		@repository( TransferRepository ) public transferRepository: TransferRepository,
 	) {
 		// Establish a connection with separate workers that help to crawl blocks as a separate process.
@@ -73,6 +74,27 @@ export class CrawlerController {
 
 	public async start(): Promise<void> {
 		await this.redisService.client.setAsync( 'calculating', 0 );
+
+		if ( ! Number( await this.redisService.client.getAsync( 'lastcalc' ) ) ) {
+			logger.info( 'No last calculated block height found in Redis, checking for Eras in database' );
+			const lastCompletedEra = await this.eraRepository.find( {
+				where: {
+					endBlock: {
+						neq: null
+					}
+				},
+				limit: 1,
+				order: ['id desc']
+			} );
+
+			if ( lastCompletedEra && lastCompletedEra.length ) {
+				logger.debug( 'Found last completed era, last calculated block: %d', lastCompletedEra[0].endBlock );
+				await this.redisService.client.setAsync( 'lastcalc', lastCompletedEra[0].endBlock );
+			} else {
+				logger.debug( 'No existing Eras found. Starting from genesis' );
+			}
+		}
+
 		this.crawlerTimer = setTimeout( async () => {
 			await this.crawl();
 		}, 5000 );
