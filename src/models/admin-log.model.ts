@@ -44,7 +44,7 @@ export class AdminLog extends Entity {
 		default: '',
 		mysql: {
 			columnName: 'extra',
-			dataType: 'text',
+			dataType: 'longtext',
 			nullable: 'N',
 		},
 	} )
