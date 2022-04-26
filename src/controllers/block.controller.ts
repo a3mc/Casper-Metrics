@@ -69,7 +69,7 @@ export class BlockController {
 
 	@get( 'block/circulating' )
 	@response( 200, {
-		description: `Most recent Circulation Supply of the last completed Era when called without params.
+		description: `Most recent Circulating Supply of the last completed Era when called without params.
         Can be queried by "blockHeight"`,
 		content: {
 			'application/json': {},

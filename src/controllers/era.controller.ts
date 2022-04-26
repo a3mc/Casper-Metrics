@@ -14,7 +14,7 @@ export class EraController {
 
 	@get( 'era/circulating' )
 	@response( 200, {
-		description: `Last Completed Era "Circulation Supply" when called without params.
+		description: `Last Completed Era "Circulating Supply" when called without params.
         Era data is updated on the Switch Block.
         Can be queried by "eraId"`,
 		content: {
