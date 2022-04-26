@@ -43,7 +43,7 @@ export class ValidatorsUnlockController {
 			throw new NotAllowed( 'Deployment in progress. Please try later.' );
 		}
 
-		if ( !unlocksData || !unlocksData.unlock90 || !unlocksData.custom ) {
+		if ( !unlocksData || unlocksData.unlock90 === undefined || !unlocksData.custom ) {
 			throw new IncorrectData( 'Data is invalid' );
 		}
 
