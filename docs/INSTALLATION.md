@@ -19,7 +19,7 @@ Dependencies:
 Create user:
 
 ```bash
-adduser <user_name>
+  $ adduser <user_name>
 ```
 
 Add user to docker group _( docker should be already installed )_:
