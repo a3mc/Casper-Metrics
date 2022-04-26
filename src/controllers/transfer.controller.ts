@@ -340,6 +340,24 @@ export class TransferController {
 		if ( await this.status() ) {
 			throw new NotAllowed( 'Deployment in progress. Please try later.' );
 		}
+		// Set lock status while processing
+		let status = await this.processingRepository.findOne( {
+			where: {
+				type: 'updating',
+			},
+		} );
+		if ( status ) {
+			status.value = true;
+			await this.processingRepository.save( status );
+		} else {
+			await this.processingRepository.create(
+				{
+					type: 'updating',
+					value: true,
+				},
+			);
+		}
+
 		if ( approvedIds ) {
 			const approved: number[] = approvedIds.split( ',' ).map(
 				id => Number( id ),
@@ -434,6 +452,17 @@ export class TransferController {
 				'Saved ' + outboundTransfers.length + ' TXs as approved: ' + sum + ' CSPR',
 				txs.join( ';' ),
 			);
+		}
+
+		// Switch of the lock flag.
+		status = await this.processingRepository.findOne( {
+			where: {
+				type: 'updating',
+			},
+		} );
+		if ( status ) {
+			status.value = false;
+			await this.processingRepository.update( status );
 		}
 	}
 
