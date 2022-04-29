@@ -8,7 +8,14 @@ export class Era extends Entity {
 		precision: 10,
 		scale: 0,
 		id: 1,
-		mysql: { columnName: 'id', dataType: 'int', dataLength: null, dataPrecision: 10, dataScale: 0, nullable: 'N' },
+		mysql: {
+			columnName: 'id',
+			dataType: 'int',
+			dataLength: null,
+			dataPrecision: 10,
+			dataScale: 0,
+			nullable: 'N'
+		},
 	} )
 	id: number;
 
@@ -119,6 +126,51 @@ export class Era extends Entity {
 		},
 	} )
 	circulatingSupply: bigint;
+
+	@property( {
+		type: 'Number',
+		required: false,
+		default: 0,
+		mysql: {
+			columnName: 'validators_circulating_supply',
+			dataType: 'bigint',
+			dataLength: null,
+			dataPrecision: null,
+			dataScale: null,
+			nullable: 'N',
+		},
+	} )
+	validatorsCirculatingSupply?: bigint;
+
+	@property( {
+		type: 'Number',
+		required: false,
+		default: 0,
+		mysql: {
+			columnName: 'transfers_circulating_supply',
+			dataType: 'bigint',
+			dataLength: null,
+			dataPrecision: null,
+			dataScale: null,
+			nullable: 'N',
+		},
+	} )
+	transfersCirculatingSupply?: bigint;
+
+	@property( {
+		type: 'Number',
+		required: false,
+		default: 0,
+		mysql: {
+			columnName: 'rewards_circulating_supply',
+			dataType: 'bigint',
+			dataLength: null,
+			dataPrecision: null,
+			dataScale: null,
+			nullable: 'N',
+		},
+	} )
+	rewardsCirculatingSupply?: bigint;
 
 	@property( {
 		type: 'Number',

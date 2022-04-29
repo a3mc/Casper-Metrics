@@ -54,14 +54,22 @@ export class PriceService {
 		const lastDate: moment.Moment = await this._getLastStoredPriceDate();
 		const toTs: number = lastDate.add( this._requestsLimit, 'hours' ).unix();
 
+		const source = axios.CancelToken.source();
+		const timeout = setTimeout(() => {
+			source.cancel();
+		}, 60000 );
+
 		const result = await axios.get(
 			'https://min-api.cryptocompare.com/data/v2/histohour?fsym=CSPR&tsym=USD' +
 			'&limit=' + this._requestsLimit +
 			'&toTs=' + toTs +
-			'&api_key=' + process.env.CC_API_KEY,
+			'&api_key=' + process.env.CC_API_KEY, {
+				timeout: 60000
+			}
 		).catch( () => {
 			logger.warn( 'Error fetching price data. Failed to connect' );
 		} );
+		clearTimeout( timeout );
 
 		if ( result && result.status === 200 && result.data?.Data?.Data?.length ) {
 			for ( const hour of result.data.Data.Data ) {

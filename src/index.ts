@@ -25,7 +25,7 @@ export async function main( options: ApplicationConfig = {} ) {
 		}
 	} );
 	if ( status ) {
-		status.value = false;
+		status.value = 0;
 		await processingRepository.update( status );
 	}
 

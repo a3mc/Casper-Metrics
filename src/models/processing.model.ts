@@ -16,10 +16,11 @@ export class Processing extends Entity {
 	type: string;
 
 	@property( {
-		type: 'boolean',
+		type: 'number',
 		required: true,
+		default: 0,
 	} )
-	value: boolean;
+	value: number;
 
 	constructor( data?: Partial<Processing> ) {
 		super( data );
