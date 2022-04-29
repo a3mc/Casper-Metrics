@@ -45,9 +45,21 @@ export class GeodataService {
 			}
 		} else {
 			logger.debug( 'Updating from geodata url' );
-			const result = await axios.get( process.env.GEODATA ).catch( () => {
+			const source = axios.CancelToken.source();
+			const timeout = setTimeout(() => {
+				source.cancel();
+			}, 60000);
+
+			const result = await axios.get(
+				process.env.GEODATA, {
+					timeout: 60000,
+					cancelToken: source.token
+				}
+			).catch( () => {
 				logger.warn( 'Error fetching validators data. Failed to connect' );
 			} );
+			clearTimeout( timeout );
+
 			if ( result && result.status === 200 ) {
 				const data = result.data;
 				const existingRecords = await this.peersRepository.find( {

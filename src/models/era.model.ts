@@ -129,6 +129,51 @@ export class Era extends Entity {
 
 	@property( {
 		type: 'Number',
+		required: false,
+		default: 0,
+		mysql: {
+			columnName: 'validators_circulating_supply',
+			dataType: 'bigint',
+			dataLength: null,
+			dataPrecision: null,
+			dataScale: null,
+			nullable: 'N',
+		},
+	} )
+	validatorsCirculatingSupply?: bigint;
+
+	@property( {
+		type: 'Number',
+		required: false,
+		default: 0,
+		mysql: {
+			columnName: 'transfers_circulating_supply',
+			dataType: 'bigint',
+			dataLength: null,
+			dataPrecision: null,
+			dataScale: null,
+			nullable: 'N',
+		},
+	} )
+	transfersCirculatingSupply?: bigint;
+
+	@property( {
+		type: 'Number',
+		required: false,
+		default: 0,
+		mysql: {
+			columnName: 'rewards_circulating_supply',
+			dataType: 'bigint',
+			dataLength: null,
+			dataPrecision: null,
+			dataScale: null,
+			nullable: 'N',
+		},
+	} )
+	rewardsCirculatingSupply?: bigint;
+
+	@property( {
+		type: 'Number',
 		required: true,
 		mysql: {
 			columnName: 'validators_weights',

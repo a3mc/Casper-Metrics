@@ -1,12 +1,13 @@
 import { authenticate, AuthenticationBindings } from '@loopback/authentication';
 import { inject, service } from '@loopback/core';
 import { repository } from '@loopback/repository';
-import { get, getModelSchemaRef, oas, OperationVisibility, param, post, response } from '@loopback/rest';
+import { get, getModelSchemaRef, oas, OperationVisibility, param, post, requestBody, response } from '@loopback/rest';
 import { UserProfile } from '@loopback/security';
-import { NotAllowed, NotFound } from '../errors/errors';
+import * as async from 'async';
+import { IncorrectData, NotAllowed, NotFound } from '../errors/errors';
 import { AdminLogServiceBindings } from '../keys';
 import { logger } from '../logger';
-import { Transfer } from '../models';
+import { Transfer, User } from '../models';
 import { BlockRepository, EraRepository, KnownAccountRepository, ProcessingRepository, TransferRepository } from '../repositories';
 import { AdminLogService, CirculatingService } from '../services';
 
@@ -292,6 +293,47 @@ export class TransferController {
 
 	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
+	@post( '/transfers/name' )
+	@response( 200, {
+		description: 'Set name and comment for the account',
+	} )
+	async name(
+		@requestBody() account: any,
+		@inject( AuthenticationBindings.CURRENT_USER ) currentUser: UserProfile,
+	): Promise<void> {
+		const knownAccount = await this.knownAccountRepository.find( {
+			where: {
+				or: [
+					{ hex: account.hash },
+					{ hex: account.hash.toLowerCase() },
+					{ hash: account.hash },
+					{ hash: account.hash.toLowerCase() },
+				]
+			},
+		} );
+
+		if ( !knownAccount.length ) {
+			throw new NotFound( 'Account not found' );
+		}
+
+		if ( account.name.length > 32 ) {
+			throw new IncorrectData( 'Name is over 32 characters' );
+		}
+
+		if ( account.comment.length > 255 ) {
+			throw new IncorrectData( 'Comment is over 255 characters' );
+		}
+
+		// Due to asyncronous crawling there's a possibility of duplicate records.
+		for ( const acc of knownAccount ) {
+			acc.name = account.name;
+			acc.comment = account.comment;
+			await this.knownAccountRepository.update( acc );
+		}
+	}
+
+	@oas.visibility( OperationVisibility.UNDOCUMENTED )
+	@authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
 	@post( '/transfers/calculate' )
 	@response( 200, {
 		description: 'Re-calculate circulating supply',
@@ -336,26 +378,18 @@ export class TransferController {
 		@param.query.string( 'declinedIds' ) declinedIds?: string,
 		@param.query.string( 'inbound' ) inbound?: string,
 		@param.query.string( 'outbound' ) outbound?: string,
+		@param.query.string( 'type' ) saveType?: number,
 	): Promise<void> {
 		if ( await this.status() ) {
 			throw new NotAllowed( 'Deployment in progress. Please try later.' );
 		}
-		// Set lock status while processing
-		let status = await this.processingRepository.findOne( {
-			where: {
-				type: 'updating',
-			},
-		} );
-		if ( status ) {
-			status.value = true;
-			await this.processingRepository.save( status );
-		} else {
-			await this.processingRepository.create(
-				{
-					type: 'updating',
-					value: true,
-				},
-			);
+
+		if ( inbound ) {
+			this._processBatch( { where: { toHash: inbound } }, currentUser, saveType );
+			return;
+		} else if ( outbound ) {
+			this._processBatch( { where: { fromHash: outbound } }, currentUser, saveType );
+			return;
 		}
 
 		if ( approvedIds ) {
@@ -403,76 +437,74 @@ export class TransferController {
 				txs.join( ';' ),
 			);
 		}
+	}
 
-		if ( inbound ) {
-			const inboundTransfers = await this.transferRepository.find( {
-				where: { toHash: inbound }
-			} );
-			if ( !inboundTransfers || !inboundTransfers.length ) {
-				throw new NotFound( 'Transfers not found' );
-			}
-
-			let sum = 0;
-			const txs = [];
-
-			for ( const transfer of inboundTransfers ) {
-				await this.transferRepository.updateById( transfer.id, {
-					approved: true
-				} );
-				sum += Number( BigInt( transfer.amount ) / BigInt( 1000000000 ) );
-				txs.push( transfer.deployHash + '|' + transfer.denomAmount );
-			}
-
-			await this.adminLogService.write(
-				currentUser,
-				'Saved ' + inboundTransfers.length + ' TXs as approved: ' + sum + ' CSPR',
-				txs.join( ';' ),
-			);
-		} else if ( outbound ) {
-			const outboundTransfers = await this.transferRepository.find( {
-				where: { fromHash: outbound }
-			} );
-			if ( !outboundTransfers || !outboundTransfers.length ) {
-				throw new NotFound( 'Transfers not found' );
-			}
-
-			let sum = 0;
-			const txs = [];
-
-			for ( const transfer of outboundTransfers ) {
-				await this.transferRepository.updateById( transfer.id, {
-					approved: true
-				} );
-				sum += Number( BigInt( transfer.amount ) / BigInt( 1000000000 ) );
-				txs.push( transfer.deployHash + '|' + transfer.denomAmount );
-			}
-
-			await this.adminLogService.write(
-				currentUser,
-				'Saved ' + outboundTransfers.length + ' TXs as approved: ' + sum + ' CSPR',
-				txs.join( ';' ),
-			);
-		}
-
-		// Switch of the lock flag.
-		status = await this.processingRepository.findOne( {
+	private async _setStatus( value: number ): Promise<void> {
+		// Set lock status while processing
+		let status = await this.processingRepository.findOne( {
 			where: {
 				type: 'updating',
 			},
 		} );
 		if ( status ) {
-			status.value = false;
+			status.value = value;
 			await this.processingRepository.update( status );
+		} else {
+			await this.processingRepository.create(
+				{
+					type: 'updating',
+					value: value,
+				},
+			);
 		}
+	}
+
+	private async _processBatch( filter: any , currentUser: UserProfile, saveType = 1 ): Promise<void> {
+		saveType = Number( saveType );
+
+		const outboundTransfers = await this.transferRepository.find( filter );
+		if ( !outboundTransfers || !outboundTransfers.length ) {
+			throw new NotFound( 'Transfers not found' );
+		}
+		await this._setStatus( 100 );
+
+		let sum = 0;
+		const txs: any[] = [];
+		const asyncQueue = [];
+
+		for ( const transfer of outboundTransfers ) {
+			asyncQueue.push( async () => {
+				await this.transferRepository.updateById( transfer.id, {
+					approved: !!saveType
+				} );
+				sum += Number( BigInt( transfer.amount ) / BigInt( 1000000000 ) );
+				txs.push( transfer.deployHash + '|' + transfer.denomAmount );
+			} );
+		}
+
+		const processTimer = setInterval( () => {
+			this._setStatus( 100 - Math.round( ( 100 / outboundTransfers.length ) * txs.length ) );
+		}, 500 );
+
+		await async.parallelLimit( asyncQueue, 100 );
+
+		await this.adminLogService.write(
+			currentUser,
+			'Saved ' + outboundTransfers.length + ' TXs as ' + ( !!saveType ? 'not ' : '') + 'approved: ' + sum + ' CSPR',
+			txs.join( ';' ),
+		);
+
+		clearInterval( processTimer );
+		await this._setStatus( 0 );
 	}
 
 	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
 	@get( '/transfers/status' )
 	@response( 200, {
-		description: 'Processing status',
+		description: 'Background processing status in percents',
 	} )
-	async status(): Promise<boolean> {
+	async status(): Promise<number> {
 		const status = await this.processingRepository.findOne( {
 			where: {
 				type: 'updating',
@@ -480,7 +512,7 @@ export class TransferController {
 		} );
 
 		if ( !status ) {
-			return false;
+			return 0;
 		}
 		return status.value;
 	}

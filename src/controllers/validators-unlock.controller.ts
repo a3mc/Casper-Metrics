@@ -40,7 +40,7 @@ export class ValidatorsUnlockController {
 		} );
 
 		if ( status && status.value ) {
-			throw new NotAllowed( 'Deployment in progress. Please try later.' );
+			throw new NotAllowed( 'Calculation in progress. Please try later.' );
 		}
 
 		if ( !unlocksData || unlocksData.unlock90 === undefined || !unlocksData.custom ) {
@@ -66,8 +66,6 @@ export class ValidatorsUnlockController {
 				timestamp: moment( custom.date ).toISOString(),
 			} );
 		}
-
-		await this.calculateValidatorsUnlocks( currentUser );
 	}
 
 	@authenticate( { strategy: 'jwt' } )
