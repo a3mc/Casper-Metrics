@@ -476,6 +476,9 @@ export class CrawlerService {
 			await this.eraRepository.create( {
 				id: block.eraId,
 				circulatingSupply: BigInt( 0 ),
+				validatorsCirculatingSupply: BigInt( 0 ),
+				transfersCirculatingSupply: BigInt( 0 ),
+				rewardsCirculatingSupply: BigInt( 0 ),
 				startBlock: block.blockHeight,
 				start: block.timestamp,
 				validatorsWeights: prevBlock.nextEraValidatorsWeights,
@@ -527,6 +530,9 @@ export class CrawlerService {
 			{
 				totalSupply: switchBlock.totalSupply,
 				circulatingSupply: BigInt( 0 ),
+				validatorsCirculatingSupply: BigInt( 0 ),
+				transfersCirculatingSupply: BigInt( 0 ),
+				rewardsCirculatingSupply: BigInt( 0 ),
 				endBlock: switchBlock.blockHeight,
 				end: moment( switchBlock.timestamp ).add( -1, 'ms' ).format(),
 				stakedDiffThisEra: stakedInfo.amount,
@@ -554,6 +560,9 @@ export class CrawlerService {
 		await this.eraRepository.create( {
 			id: 0,
 			circulatingSupply: BigInt( 0 ),
+			validatorsCirculatingSupply: BigInt( 0 ),
+			transfersCirculatingSupply: BigInt( 0 ),
+			rewardsCirculatingSupply: BigInt( 0 ),
 			stakedDiffThisEra: BigInt( 0 ),
 			undelegatedThisEra: BigInt( 0 ),
 			stakedThisEra: BigInt( 0 ),
