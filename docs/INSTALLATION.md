@@ -55,7 +55,7 @@ Build latest redis-cli: ( we use a default port here )
 Create folder for MySQL configuration and storage:
 
 ```bash
-  $ mkdir -p $HOME/.mysql.conf/casper-metrics-mysql/conf.d
+  $ mkdir -p $HOME/.mysql/casper-metrics-mysql/conf.d
   $ mkdir -p $HOME/.mysql/casper-metrics-mysql/db
 ```
 
