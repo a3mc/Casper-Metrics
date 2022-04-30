@@ -75,26 +75,6 @@ export class CrawlerController {
 	public async start(): Promise<void> {
 		await this.redisService.client.setAsync( 'calculating', 0 );
 
-		if ( ! Number( await this.redisService.client.getAsync( 'lastcalc' ) ) ) {
-			logger.info( 'No last calculated block height found in Redis, checking for Eras in database' );
-			const lastCompletedEra = await this.eraRepository.find( {
-				where: {
-					endBlock: {
-						neq: null
-					}
-				},
-				limit: 1,
-				order: ['id desc']
-			} );
-
-			if ( lastCompletedEra && lastCompletedEra.length ) {
-				logger.debug( 'Found last completed era, last calculated block: %d', lastCompletedEra[0].endBlock );
-				await this.redisService.client.setAsync( 'lastcalc', lastCompletedEra[0].endBlock );
-			} else {
-				logger.debug( 'No existing Eras found. Starting from genesis' );
-			}
-		}
-
 		this.crawlerTimer = setTimeout( async () => {
 			await this.crawl();
 		}, 5000 );
@@ -118,6 +98,29 @@ export class CrawlerController {
 			await this.scheduleCrawling();
 			return;
 		}
+
+
+		if ( ! Number( await this.redisService.client.getAsync( 'lastcalc' ) ) ) {
+			logger.info( 'No last calculated block height found in Redis, checking for Eras in database' );
+			const lastCompletedEra = await this.eraRepository.find( {
+				where: {
+					endBlock: {
+						neq: null
+					}
+				},
+				limit: 1,
+				order: ['id desc']
+			} );
+
+			if ( lastCompletedEra && lastCompletedEra.length ) {
+				logger.debug( 'Found last completed era, last calculated block: %d', lastCompletedEra[0].endBlock );
+				await this.redisService.client.setAsync( 'lastcalc', lastCompletedEra[0].endBlock );
+			} else {
+				logger.debug( 'No existing Eras found. Starting from genesis' );
+			}
+		}
+
+
 		// Geo data is a collection of know peers, where mostly active validators are interested for us.
 		// It is collected by external service and fetched periodically.
 		// If path to the service is not set it will use a mock that actually is just a dump of last fetch,
