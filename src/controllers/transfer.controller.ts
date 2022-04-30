@@ -345,21 +345,10 @@ export class TransferController {
 			throw new NotAllowed( 'Deployment in progress. Please try later.' );
 		}
 
-		const approvedItems = await this.transferRepository.find( {
-			where: { approved: true },
-			fields: ['amount', 'deployHash'],
-		} );
-
-		let approvedSum = approvedItems.reduce( ( a, b ) => {
-			return a + BigInt( b.amount );
-		}, BigInt( 0 ) );
-
-		approvedSum = BigInt( approvedSum ) / BigInt( 1000000000 );
-
 		await this.adminLogService.write(
 			currentUser,
-			'Approved ' + approvedItems.length + ' TXs: ' + approvedSum + ' CSPR',
-			approvedItems.map( tx => tx.deployHash + '|' + String( BigInt( tx.amount ) / BigInt( 1000000000 ) ) ).join( ';' ),
+			'Performed the update of historical data',
+			'',
 		);
 
 		// Async. We don't wait for it to complete here.
