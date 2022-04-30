@@ -257,3 +257,7 @@ If deployed remotely, to access all modules build tunnel as in example, or conne
 ```bash
   $ ssh <host> -L 4300:127.0.0.1:4300  -L 4200:127.0.0.1:4200  -L 3000:127.0.0.1:3000 -N
 ```
+
+##### Admin Login
+
+To access admin interface for the first time, you have to edit `.env` file. In this example, we will use default demo credentials provided in `example.env`. Admin will be forced to set password and 2FA on the first admin page load. Enter 000000 for 2FA and credentials provided in `.env` file when logging in for the first time.
