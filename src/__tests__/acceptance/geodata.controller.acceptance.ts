@@ -1,10 +1,12 @@
 import { Client, expect } from '@loopback/testlab';
 import { CasperMetricsApplication } from '../..';
+import { logger } from '../../logger';
 import { setupApplication } from './test-helper';
 
 describe( 'GeodataController', () => {
 	let app: CasperMetricsApplication;
 	let client: Client;
+	logger.silent = true;
 
 	before( 'setupApplication', async () => {
 		( { app, client } = await setupApplication() );

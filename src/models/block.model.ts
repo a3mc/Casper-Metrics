@@ -20,6 +20,21 @@ export class Block extends Entity {
 	blockHeight: number;
 
 	@property( {
+		type: 'string',
+		required: true,
+		length: 128,
+		mysql: {
+			columnName: 'block_hash',
+			dataType: 'varchar',
+			dataLength: 128,
+			dataPrecision: null,
+			dataScale: null,
+			nullable: 'N',
+		},
+	} )
+	blockHash: string;
+
+	@property( {
 		type: 'number',
 		required: true,
 		precision: 10,
@@ -270,17 +285,13 @@ export class Block extends Entity {
 		required: true,
 		mysql: {
 			columnName: 'timestamp',
-			dataType: 'timestamp',
-			dataLength: null,
-			dataPrecision: null,
-			dataScale: null,
+			dataType: 'timestamp(3)',
 			nullable: 'N',
 		},
 	} )
 	timestamp: string;
 
 	// Define well-known properties here
-
 	prevBlockTime?: number;
 
 	// Indexer property to allow additional data

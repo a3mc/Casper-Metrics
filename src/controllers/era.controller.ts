@@ -4,7 +4,6 @@ import { IncorrectData, NotFound } from '../errors/errors';
 import { Era } from '../models';
 import { EraRepository } from '../repositories';
 
-//@authenticate.skip()
 export class EraController {
 	constructor(
 		@repository( EraRepository )
@@ -81,13 +80,16 @@ export class EraController {
 	@response( 200, {
 		description: `Last Completed Era metrics when called without params.
         Can be queried by either "eraId", "blockHeight" or "timestamp" (e.g. "2021-04-09T09:31:36Z").
-        Order example: "id DESC". Max limit is 10000, but it's not recommended to query more than 100 records at once in this Swagger UI.
+        Order example: "id DESC". Max limit for simple queries is 10000 records (when used without a Custom Filter),
+        but avoid using limits over 100 in the Swagger UI to prevent browser from hanging.
+        "Filter" can be a custom JSON object. Please see the documentation for examples.
         `,
 		content: {
 			'application/json': {
 				schema: {
 					type: 'array',
 					items: getModelSchemaRef( Era, { includeRelations: false } ),
+					additionalProperties: false,
 				},
 			},
 		},
@@ -99,7 +101,22 @@ export class EraController {
 		@param.query.number( 'limit' ) limit?: number,
 		@param.query.string( 'order' ) order?: string[],
 		@param.query.string( 'skip' ) skip?: number,
+		@param.query.object( 'filter' ) customFilter?: Filter<Era>,
 	): Promise<Era[]> {
+		// If a custom "filter" object is used it ignores and overrides other parameters.
+		if ( customFilter ) {
+			if ( !customFilter ) {
+				throw new IncorrectData( 'Incorrect empty filter' );
+			}
+			// Limit responses to 10 when using custom Filter
+			if ( !customFilter.limit || customFilter.limit > 10 ) {
+				customFilter.limit = 10;
+			}
+			return this.eraRepository.find( customFilter ).catch( () => {
+				throw new IncorrectData( 'Incorrect query' );
+			} );
+		}
+
 		let filter: Filter<Era> = {
 			// TODO: Rename id to eraId for consistency.
 			limit: limit ? Math.min( limit, 10000 ) : 1,
