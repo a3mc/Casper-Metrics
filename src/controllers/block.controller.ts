@@ -80,16 +80,19 @@ export class BlockController {
 
 				}
 
-				block.prevBlockTime = 0;
-				if ( block.blockHeight ) {
-					const prevBlock = await this.blocksRepository.findOne( {
-						where: { blockHeight: block.blockHeight - 1 },
-						fields: ['timestamp'],
-					} );
+				// @ts-ignore
+				if ( !filter || !filter.fields || filter.fields.indexOf( 'prevBlockTime' ) > -1 ) {
+					block.prevBlockTime = 0;
+					if ( block.blockHeight ) {
+						const prevBlock = await this.blocksRepository.findOne( {
+							where: { blockHeight: block.blockHeight - 1 },
+							fields: ['timestamp'],
+						} );
 
-					if ( prevBlock ) {
-						block.prevBlockTime = moment( block.timestamp )
-							.diff( prevBlock.timestamp, 'milliseconds' );
+						if ( prevBlock ) {
+							block.prevBlockTime = moment( block.timestamp )
+								.diff( prevBlock.timestamp, 'milliseconds' );
+						}
 					}
 				}
 				processedBlocks.push( Object.assign( {}, block ) );
@@ -104,23 +107,30 @@ export class BlockController {
 	@get( 'block/circulating' )
 	@response( 200, {
 		description: `Most recent Circulating Supply of the last completed Era when called without params.
-        Can be queried by "blockHeight"`,
+        Can be queried by "blockHeight" or block "hash"`,
 		content: {
 			'application/json': {},
 		},
 	} )
 	async circulating(
 		@param.query.number( 'blockHeight' ) blockHeight?: number,
+		@param.query.string( 'hash' ) blockHash?: string,
 	): Promise<string> {
 		let filter: Filter<Block> = {
 			limit: 1,
 			order: ['blockHeight DESC'],
 		};
+
 		if ( blockHeight !== undefined ) {
 			filter.where = {
 				blockHeight: blockHeight,
 			};
+		} else if ( blockHash !== undefined ) {
+			filter.where = {
+				blockHash: blockHash,
+			};
 		}
+
 		const block: Block | null = await this.blocksRepository.findOne( filter );
 		if ( !block ) {
 			throw new NotFound();
@@ -131,13 +141,14 @@ export class BlockController {
 	@get( 'block/total' )
 	@response( 200, {
 		description: `Most recent Total Supply of the last completed Era when called without params.
-        Can be queried by "blockHeight"`,
+        Can be queried by "blockHeight" or block "hash"`,
 		content: {
 			'application/json': {},
 		},
 	} )
 	async total(
 		@param.query.number( 'blockHeight' ) blockHeight?: number,
+		@param.query.string( 'hash' ) blockHash?: string,
 	): Promise<string> {
 		let filter: Filter<Block> = {
 			limit: 1,
@@ -146,6 +157,10 @@ export class BlockController {
 		if ( blockHeight !== undefined ) {
 			filter.where = {
 				blockHeight: blockHeight,
+			};
+		} else if ( blockHash !== undefined ) {
+			filter.where = {
+				blockHash: blockHash,
 			};
 		}
 		const lastRecord = await this.blocksRepository.findOne( filter )

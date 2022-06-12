@@ -31,6 +31,20 @@ describe( 'BlockController', () => {
 		expect( parseInt( res.text ) ).to.Number();
 	} );
 
+	it( 'invokes GET block/circulating with block hash', async () => {
+		const blockHash = ( await blockRepository.find( {
+			limit: 1,
+			order: ['blockHeight DESC'],
+		} ) )[0].blockHash;
+
+		const res = await client.get( '/block/circulating?hash=' + blockHash ).expect( 200 );
+		expect( parseInt( res.text ) ).to.Number();
+	} );
+
+	it( 'returns 404 on not existing block hash in  GET block/circulating', async () => {
+		const res = await client.get( '/block/circulating?hash=no_such_hash' ).expect( 404 );
+	} );
+
 	it( 'should return 404 on non-existing block when querying circulating', async () => {
 		const res = await client.get( '/block/circulating?blockHeight=10000000000' ).expect( 404 );
 	} );
@@ -47,6 +61,20 @@ describe( 'BlockController', () => {
 
 	it( 'should return 404 on non-existing block when querying total', async () => {
 		const res = await client.get( '/block/circulating?blockHeight=10000000000' ).expect( 404 );
+	} );
+
+	it( 'invokes GET block/total with block hash', async () => {
+		const blockHash = ( await blockRepository.find( {
+			limit: 1,
+			order: ['blockHeight DESC'],
+		} ) )[0].blockHash;
+
+		const res = await client.get( '/block/total?hash=' + blockHash ).expect( 200 );
+		expect( parseInt( res.text ) ).to.Number();
+	} );
+
+	it( 'returns 404 on not existing block hash in GET block/total', async () => {
+		const res = await client.get( '/block/total?hash=no_such_hash' ).expect( 404 );
 	} );
 
 	it( 'invokes GET block without params - last', async () => {
