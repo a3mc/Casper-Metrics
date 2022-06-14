@@ -229,6 +229,9 @@ export class TransferController {
 		@param.query.number( 'eraId' ) eraId?: number,
 		@param.query.number( 'limit' ) limit: number = 20,
 	): Promise<any> {
+		if ( limit > 200 ) {
+			limit = 200;
+		}
 		if ( eraId === undefined ) {
 			const lastCompletedEraFilter = {
 				limit: 1,
