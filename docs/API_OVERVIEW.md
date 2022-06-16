@@ -258,9 +258,21 @@ curl -X 'GET' \
 
 This endpoint serves information about the currently active Validators, that expose their geolocation, so can be easily shown on the map. The list is updated every few hours.
 
-An example of getting all available validators with the exposed geolocation:
+A simple example of getting active validators:
 ```shell
 curl -X 'GET' \
   'https://mainnet.cspr.art3mis.net/validators' \
   -H 'accept: application/json'
+```
+
+A *Custom Filter* can be used on this endpoint as well. An example to find only Validators in Germany:
+
+What you post into the `filter` section:
+```js
+{
+  "where": {
+    "country": "DE"
+  },
+  "fields": ["city", "performance", "org"]
+}
 ```
