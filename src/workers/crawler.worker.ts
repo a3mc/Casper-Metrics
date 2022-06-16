@@ -35,7 +35,7 @@ export class CrawlerWorker {
 				let blockHeight = Number( message );
 				this._asyncQueue.push( async () => {
 						let result: boolean = true;
-						await this.crawlerService.createBlock( blockHeight )
+						await this.crawlerService.updateBlockHash( blockHeight )
 							.catch( () => {
 								result = false;
 								this.redisService.pub.client.publish( 'error', String( blockHeight ) );

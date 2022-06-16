@@ -86,6 +86,23 @@ export class CrawlerService {
 		return maxLastBlock;
 	}
 
+	public async updateBlockHash( blockHeight: number ): Promise<void> {
+		if ( await this.blocksRepository.exists( blockHeight ) ) {
+			const service = await this._getCasperService();
+			const blockInfo: any = await this._withTimeout( service.node, 'getBlockInfoByHeight', [blockHeight] )
+				.catch( async () => {
+					await this._banService( service );
+					throw new Error();
+				} );
+
+			await this.blocksRepository.updateById( blockHeight, {
+				blockHash: blockInfo.block.hash,
+				timestamp: blockInfo.block.header.timestamp,
+			} );
+			await this.redisService.client.setAsync( 'h' + String( blockHeight ), 1 );
+		}
+	}
+
 	// Crawl for a block and its deploys.
 	public async createBlock( blockHeight: number ): Promise<void> {
 		if ( await this.redisService.client.getAsync( 'b' + String( blockHeight ) ) ) {

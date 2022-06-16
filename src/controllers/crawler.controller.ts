@@ -58,11 +58,12 @@ export class CrawlerController {
 				if ( this.finishedWorkers >= this.workers.length ) {
 					clearInterval( this.meterInterval );
 					logger.info( 'Processed/Queued blocks: %d / %d', this.processedBlocks, this.queuedBlocks );
-					if ( this.queuedBlocks === this.processedBlocks ) {
-						this.startCalculating();
-					} else {
-						this.scheduleCrawling();
-					}
+					// if ( this.queuedBlocks === this.processedBlocks ) {
+					// 	//this.startCalculating();
+					// } else {
+					// 	this.scheduleCrawling();
+					// }
+					this.scheduleCrawling();
 				}
 			}
 		} );
@@ -208,10 +209,10 @@ export class CrawlerController {
 	private async collectBlocksToCrawl(): Promise<void> {
 		let worker = 0;
 
-		for ( let blockHeight = this.lastCalculated + 1; blockHeight <= this.lastBlockHeight; blockHeight++ ) {
+		for ( let blockHeight = 0; blockHeight <= this.lastBlockHeight; blockHeight++ ) {
 			/* Add unprocessed blocks to the queue */
 			if (
-				!await this.redisService.client.getAsync( 'b' + String( blockHeight ) ) &&
+				!await this.redisService.client.getAsync( 'h' + String( blockHeight ) ) &&
 				this.queuedBlocks < this.blocksBatchSize
 			) {
 				this.queuedBlocks++;
