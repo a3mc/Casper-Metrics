@@ -1,5 +1,6 @@
 import { Client, expect } from '@loopback/testlab';
 import { CasperMetricsApplication } from '../..';
+import { logger } from '../../logger';
 import { UserRepository } from '../../repositories';
 import { testdb } from './metrics-db.datasource';
 import { givenTestDatabase, setupApplication } from './test-helper';
@@ -10,6 +11,7 @@ describe( 'ValidatorsUnlockController', () => {
 	let app: CasperMetricsApplication;
 	let client: Client;
 	let userRepository = new UserRepository( testdb );
+	logger.silent = true;
 
 	before( 'setupApplication', async () => {
 		( { app, client } = await setupApplication() );

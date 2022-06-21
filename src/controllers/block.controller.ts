@@ -1,7 +1,7 @@
 import { Filter, repository } from '@loopback/repository';
 import { get, getModelSchemaRef, param, response } from '@loopback/rest';
 import moment from 'moment';
-import { NotFound } from '../errors/errors';
+import { IncorrectData, NotFound } from '../errors/errors';
 import { Block, Era } from '../models';
 import { BlockRepository, EraRepository } from '../repositories';
 
@@ -16,77 +16,121 @@ export class BlockController {
 
 	@get( '/block' )
 	@response( 200, {
-		description: `Last block or a block specified by blockHeight.`,
+		description: `Last block or a block specified by blockHeight.
+			Can also return a collection of blocks when a custom "Filter" is used.
+			Please see the documentation for examples.`,
 		content: {
 			'application/json': {
-				schema: getModelSchemaRef( Block, { includeRelations: false } ),
+				schema: {
+					type: 'array',
+					items: getModelSchemaRef( Block, { includeRelations: false } ),
+					additionalProperties: true,
+				},
 			},
 		},
 	} )
 	async find(
 		@param.query.number( 'blockHeight' ) blockHeight?: number,
-	): Promise<Block> {
-		let filter: Filter<Block> = {
-			limit: 1,
-			order: ['blockHeight DESC'],
-		};
-		if ( blockHeight !== undefined ) {
-			filter.where = {
-				blockHeight: blockHeight,
-			};
-		}
-		const block: Block | null = await this.blocksRepository.findOne( filter );
-
-		if ( block ) {
-			const circulatingSupply: bigint = await this._getLastCirculatingSupply( block );
-			block.circulatingSupply = Number( circulatingSupply );
-
-			const era: Era | null = await this.eraRepository.findOne( {
-				where: { id: block.eraId },
-			} );
-			if ( era ) {
-				block.validatorsWeights = era.validatorsWeights;
-				block.circulatingSupply = era.circulatingSupply;
+		@param.query.string( 'hash' ) blockHash?: string,
+		@param.query.object( 'filter' ) customFilter?: Filter<Block>,
+	): Promise<Block[]> {
+		let filter: Filter<Block>;
+		if ( customFilter ) {
+			if ( !customFilter.limit || customFilter.limit > 10 ) {
+				customFilter.limit = 10;
 			}
+			filter = customFilter;
+		} else {
+			filter = {
+				limit: 1,
+				order: ['blockHeight DESC'],
+			};
+			if ( blockHeight !== undefined ) {
+				filter.where = {
+					blockHeight: blockHeight,
+				};
+			} else if ( blockHash !== undefined ) {
+				filter.where = {
+					blockHash: blockHash,
+				};
+			}
+		}
 
-			if ( block.blockHeight ) {
-				const prevBlock = await this.blocksRepository.findOne( {
-					where: { blockHeight: block.blockHeight - 1 },
-					fields: ['timestamp'],
+		const blocks: Block[] | null = await this.blocksRepository.find( filter ).catch( () => {
+			throw new IncorrectData( 'Incorrect query' );
+		} );
+
+		let processedBlocks: any[] = [];
+
+		if ( blocks.length ) {
+			for ( const block of blocks ) {
+				const era: Era | null = await this.eraRepository.findOne( {
+					where: { id: block.eraId },
+					fields: ['validatorsWeights', 'circulatingSupply'],
 				} );
+				if ( era ) {
+					// @ts-ignore
+					if ( !filter.fields || filter.fields.indexOf( 'validatorsWeights' ) > -1 ) {
+						block.validatorsWeights = era.validatorsWeights;
+					}
+					// @ts-ignore
+					if ( !filter.fields || filter.fields.indexOf( 'circulatingSupply' ) > -1 ) {
+						block.circulatingSupply = era.circulatingSupply;
+					}
 
-				if ( prevBlock ) {
-					block.prevBlockTime = moment( block.timestamp )
-						.diff( prevBlock?.timestamp, 'milliseconds' );
 				}
+
+				// @ts-ignore
+				if ( !filter || !filter.fields || filter.fields.indexOf( 'prevBlockTime' ) > -1 ) {
+					block.prevBlockTime = 0;
+					if ( block.blockHeight ) {
+						const prevBlock = await this.blocksRepository.findOne( {
+							where: { blockHeight: block.blockHeight - 1 },
+							fields: ['timestamp'],
+						} );
+
+						if ( prevBlock ) {
+							block.prevBlockTime = moment( block.timestamp )
+								.diff( prevBlock.timestamp, 'milliseconds' );
+						}
+					}
+				}
+				processedBlocks.push( Object.assign( {}, block ) );
 			}
 		} else {
 			throw new NotFound();
 		}
 
-		return Object.assign( {}, block );
+		return processedBlocks;
 	}
 
 	@get( 'block/circulating' )
 	@response( 200, {
 		description: `Most recent Circulating Supply of the last completed Era when called without params.
-        Can be queried by "blockHeight"`,
+        Can be queried by "blockHeight" or block "hash"`,
 		content: {
 			'application/json': {},
 		},
 	} )
 	async circulating(
 		@param.query.number( 'blockHeight' ) blockHeight?: number,
+		@param.query.string( 'hash' ) blockHash?: string,
 	): Promise<string> {
-		let filter: Filter<Era> = {
+		let filter: Filter<Block> = {
 			limit: 1,
 			order: ['blockHeight DESC'],
 		};
+
 		if ( blockHeight !== undefined ) {
 			filter.where = {
 				blockHeight: blockHeight,
 			};
+		} else if ( blockHash !== undefined ) {
+			filter.where = {
+				blockHash: blockHash,
+			};
 		}
+
 		const block: Block | null = await this.blocksRepository.findOne( filter );
 		if ( !block ) {
 			throw new NotFound();
@@ -97,13 +141,14 @@ export class BlockController {
 	@get( 'block/total' )
 	@response( 200, {
 		description: `Most recent Total Supply of the last completed Era when called without params.
-        Can be queried by "blockHeight"`,
+        Can be queried by "blockHeight" or block "hash"`,
 		content: {
 			'application/json': {},
 		},
 	} )
 	async total(
 		@param.query.number( 'blockHeight' ) blockHeight?: number,
+		@param.query.string( 'hash' ) blockHash?: string,
 	): Promise<string> {
 		let filter: Filter<Block> = {
 			limit: 1,
@@ -112,6 +157,10 @@ export class BlockController {
 		if ( blockHeight !== undefined ) {
 			filter.where = {
 				blockHeight: blockHeight,
+			};
+		} else if ( blockHash !== undefined ) {
+			filter.where = {
+				blockHash: blockHash,
 			};
 		}
 		const lastRecord = await this.blocksRepository.findOne( filter )

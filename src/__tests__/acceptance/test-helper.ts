@@ -1,4 +1,5 @@
 import { Client, createRestAppClient, givenHttpServerConfig } from '@loopback/testlab';
+import * as crypto from 'crypto';
 import moment from 'moment';
 import { CasperMetricsApplication } from '../..';
 import { logger } from '../../logger';
@@ -40,6 +41,7 @@ export async function givenTestDatabase() {
 		blocks.push(
 			{
 				blockHeight: i,
+				blockHash: crypto.randomBytes( 32 ).toString( 'hex' ),
 				eraId: Math.floor( i / 100 ),
 				circulatingSupply: BigInt( 0 ),
 				validatorsWeights: BigInt( 0 ),
@@ -104,7 +106,7 @@ export async function givenTestDatabase() {
 				volumeFrom: 1000,
 				volumeTo: 100000,
 				date: moment().format(),
-			}
+			},
 		);
 	}
 	await priceRepository.createAll( prices );
@@ -124,7 +126,7 @@ export async function givenTestDatabase() {
 					name: 'Casper Metrics',
 					account: 'admin@localhost',
 				},
-			).secret
+			).secret,
 		},
 		{
 			email: 'editor@localhost',
@@ -138,7 +140,7 @@ export async function givenTestDatabase() {
 					name: 'Casper Metrics',
 					account: 'editor@localhost',
 				},
-			).secret
+			).secret,
 		},
 		{
 			email: 'viewer@localhost',
@@ -152,7 +154,7 @@ export async function givenTestDatabase() {
 					name: 'Casper Metrics',
 					account: 'viewer@localhost',
 				},
-			).secret
+			).secret,
 		},
 		{
 			email: 'notactive@localhost',
@@ -166,7 +168,7 @@ export async function givenTestDatabase() {
 					name: 'Casper Metrics',
 					account: 'notactive@localhost',
 				},
-			).secret
+			).secret,
 		},
 		{
 			email: 'deleted@localhost',
@@ -180,7 +182,7 @@ export async function givenTestDatabase() {
 					name: 'Casper Metrics',
 					account: 'deleted@localhost',
 				},
-			).secret
+			).secret,
 		},
 
 	] );
@@ -247,7 +249,7 @@ export async function givenTestDatabase() {
 				amount: '1000000000',
 				denomAmount: 1,
 				timestamp: moment().format(),
-			}
+			},
 		);
 	}
 	await transferRepository.createAll( transfers );

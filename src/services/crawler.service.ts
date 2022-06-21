@@ -176,6 +176,7 @@ export class CrawlerService {
 		}
 		await this.blocksRepository.create( {
 			blockHeight: blockHeight,
+			blockHash: blockInfo.block.hash,
 			eraId: eraId,
 			timestamp: blockInfo.block.header.timestamp,
 			stateRootHash: stateRootHash,
