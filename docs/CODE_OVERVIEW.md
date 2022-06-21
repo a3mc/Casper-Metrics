@@ -56,9 +56,15 @@ For the `error` level that indicates critical problems, a separate notification 
 
 While most of the REST operations is handled by the framework, following the options and decorators in the controllers, there's a special interceptor in `interceptors/authorize.interceptor.ts` that is dedicated to protect admin endpoints from the unneeded access. Protected endpoints provide various checks and rely on the JWT token that admin obtains after logging into the admin sections. There are three *roles* of admins that can access it, and each role is checked for performing various actions. It also fully covered with tests to ensure it's fully secure. Signing up is possible only by a special invitation provided by the administrator and strong passwords, email verification and 2FA are enforced for these users. 
 
+#### Comments and understanding the code
+
+Being initially based on Loopback 4 framework, its documentation can help to understand how different parts, decorators, interceptors, etc., work there. And as well to understand the overall cycle of the application. To not clutter the code space, that its already quite huge, comments are added only in the parts that need specific explanation, though most of the code is prepared to be read easily. Exploring tests also can provide some insight on how things are working together.
+
 #### OpenApi specification
 
 API automatically builds an OpenApi v3 JSON file that can be used in Swagger and other tools to get used to the API calls and explore the possibilities. Admin endpoints remain undocumented there.
+
+The updated version of `openapi.json` file is created when the project builds.
 
 #### Crawler
 
