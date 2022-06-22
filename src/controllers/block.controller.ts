@@ -42,7 +42,7 @@ export class BlockController {
 			// @ts-ignore
 			const maxLimit = request?.headers?.origin && request.headers.origin.indexOf( 'caspermetrics.io' ) > -1 ? 100 : 1000;
 			if ( !customFilter.limit || customFilter.limit > maxLimit ) {
-				console.log( 'max limit ', maxLimit );
+				customFilter.limit = maxLimit;
 			}
 			filter = customFilter;
 		} else {
