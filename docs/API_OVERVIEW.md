@@ -26,9 +26,11 @@ The production API is hosted on the [https://mainnet.cspr.art3mis.net](https://m
 
 You are free to use the API the way you want, as long as your will is good. There are certain limitations you should be aware of:
 
-- Rate limit of 10 queries per second, or 100 per minute;
-- When querying the range of Blocks, the maximum response limit is 10 blocks;
-- There's a maximum limit of 10 eras when using a *Custom Filter*.
+- Rate limits apply.
+- When querying the range of Blocks, the maximum response limit is 1000 blocks at once.
+- There's a maximum limit of 1000 Eras returned at once.
+- Maximum limit of items returned for `TransfersByEraId` is 200.
+- When making a query for a range of Blocks or Eras from Swagger at [caspermetrics.io](https://caspermetrics.io/api) the limit of 100 items is applied to prevent the UI from possible hanging when rendering the response.
 
 ### Using endpoints
 
@@ -168,7 +170,7 @@ curl -X 'GET' \
   -H 'accept: application/json'
 ```
 
-There are three more parameters for getting a range of Eras: `limit`, `order` and `skip`. The can be used together to get a range. While the maximum response limit when using these three parameters is 10000, we'd recommend not to try launching it in the Swagger interface, as it may hang your browser for a while when rendering. When making the call programmatically, for example via `curl` the response is quite fast.
+There are three more parameters for getting a range of Eras: `limit`, `order` and `skip`. The can be used together to get a range. While the maximum response limit when using these three parameters is 1000, it's recommended to avoid high limits when queried from the website interface, as it may hang your browser for a while when rendering larger responses. When making the call programmatically, for example via `curl` the response is quite fast, and you can use high limits when needed.
 
 An example of getting a range of Eras (10 Eras between starting Era 1000, sorted by descending `validatorsRewards`):
 ```shell
@@ -177,9 +179,9 @@ curl -X 'GET' \
   -H 'accept: application/json'
 ```
 
-It's also possible to use a *Custom Filter* to get a range of Eras or a single one. For the syntax on composing the request please see the Loopback 4 [docs]() and Era's properties in the `example` sections. *Custom Filter* overrides other parameters and has a limitation of 10 items to be returned at once. Please keep in mind that only "strict" JSON (with no trailing commas and with double qutoes) is accepted.
+It's also possible to use a *Custom Filter* to get a range of Eras or a single one. For the syntax on composing the request please see the Loopback 4 [docs]() and Era's properties in the `example` sections. *Custom Filter* overrides other parameters and has a limitation of 1000 items to be returned at once. It's recommended not to use high limits when called directly from Swagger UI. Please keep in mind that only "strict" JSON (with no trailing commas and with double qutoes) is accepted.
 
-An example of getting 3 Eras between (including) Blocks 1000 and 3000 sorted by descnding `rewards`. Only `id`, `rewards`, `start` and `end` will be returned in this example.
+An example of getting 3 Eras between (including) Blocks 1000 and 3000 sorted by descending `rewards`. Only `id`, `rewards`, `start` and `end` will be returned in this example.
 
 What you put into the `filter` text area:
 ```js
@@ -244,7 +246,7 @@ curl -X 'GET' \
 
 ##### GET /transfersByEraId
 
-This endpoint accepts two parameters - `eraId` and `limit`. The default limit is 20 and the maximum is 200. It returns data about transfers for the given Era, sorted by the amount in the descending order. Every transfer has `account-hash` address from which account and to which account the transfer was made. When possible it also returns the `hex` addresses of these accounts as well. When there are circular transfers inside one Era, it prefixes the duplicated accounts with `dup-`, allowing to visually represent it like on the "Transfers Flow" diagram in [Charts](https://caspermetrics.io/charts).
+This endpoint accepts two parameters - `eraId` and `limit`. The default limit is 20. It returns data about transfers for the given Era, sorted by the amount in the descending order. Every transfer has `account-hash` address from which account and to which account the transfer was made. When possible it also returns the `hex` addresses of these accounts as well. When there are circular transfers inside one Era, it prefixes the duplicated accounts with `dup-`, allowing to visually represent it like on the "Transfers Flow" diagram in [Charts](https://caspermetrics.io/charts).
 
 An example:
 

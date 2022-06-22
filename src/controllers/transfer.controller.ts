@@ -215,7 +215,7 @@ export class TransferController {
 
 	@get( '/transfersByEraId' )
 	@response( 200, {
-		description: 'Transfers filtered by Era Id',
+		description: 'Transfers filtered by Era Id. Max limit is 200.',
 		content: {
 			'application/json': {
 				schema: {
@@ -270,7 +270,8 @@ export class TransferController {
 			transfers = transfers.slice( 0, limit );
 		}
 
-		// Create duplicate nodes for a DAG diagram.
+		// Create duplicate nodes for a DAG diagram when there's a cycle of transfers within one Era.
+		// Duplicate accounts get prefixed with "dub-". That makes it possible to visibly represent the flow.
 		if ( transfers.length ) {
 			const graph: any = new Graph( Graph.DIRECTED );
 			for ( const transfer of transfers ) {
