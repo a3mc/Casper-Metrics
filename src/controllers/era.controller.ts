@@ -108,7 +108,7 @@ export class EraController {
 	): Promise<Era[]> {
 		// Limit responses depending on how it was called.
 		// @ts-ignore
-		const maxLimit = request?.headers?.host && request.headers.host.indexOf( 'caspermetrics.io' ) > -1 ? 100 : 1000;
+		const maxLimit = request?.headers?.origin && request.headers.origin.indexOf( 'caspermetrics.io' ) > -1 ? 100 : 1000;
 
 		// If a custom "filter" object is used it ignores and overrides other parameters.
 		if ( customFilter ) {

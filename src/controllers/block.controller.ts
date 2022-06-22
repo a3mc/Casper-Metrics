@@ -40,7 +40,7 @@ export class BlockController {
 		let filter: Filter<Block>;
 		if ( customFilter ) {
 			// @ts-ignore
-			const maxLimit = request?.headers?.host && request.headers.host.indexOf( 'caspermetrics.io' ) > -1 ? 100 : 1000;
+			const maxLimit = request?.headers?.origin && request.headers.origin.indexOf( 'caspermetrics.io' ) > -1 ? 100 : 1000;
 			if ( !customFilter.limit || customFilter.limit > maxLimit ) {
 				console.log( 'max limit ', maxLimit );
 			}
