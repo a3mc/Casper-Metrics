@@ -1,5 +1,7 @@
+import { inject } from '@loopback/core';
 import { Filter, repository } from '@loopback/repository';
-import { get, getModelSchemaRef, param, response } from '@loopback/rest';
+import { get, getModelSchemaRef, param, response, RestBindings } from '@loopback/rest';
+import { Request } from 'express';
 import moment from 'moment';
 import { IncorrectData, NotFound } from '../errors/errors';
 import { Block, Era } from '../models';
@@ -17,8 +19,8 @@ export class BlockController {
 	@get( '/block' )
 	@response( 200, {
 		description: `Last block or a block specified by blockHeight.
-			Can also return a collection of blocks when a custom "Filter" is used.
-			Please see the documentation for examples.`,
+			Can also return a range of blocks when a custom "Filter" is used.
+			Please see the documentation for the examples.`,
 		content: {
 			'application/json': {
 				schema: {
@@ -30,14 +32,17 @@ export class BlockController {
 		},
 	} )
 	async find(
+		@inject( RestBindings.Http.REQUEST ) request: Request,
 		@param.query.number( 'blockHeight' ) blockHeight?: number,
 		@param.query.string( 'hash' ) blockHash?: string,
 		@param.query.object( 'filter' ) customFilter?: Filter<Block>,
 	): Promise<Block[]> {
 		let filter: Filter<Block>;
 		if ( customFilter ) {
-			if ( !customFilter.limit || customFilter.limit > 10 ) {
-				customFilter.limit = 10;
+			// @ts-ignore
+			const maxLimit = request?.headers?.host && request.headers.host.indexOf( 'caspermetrics.io' ) > -1 ? 100 : 1000;
+			if ( !customFilter.limit || customFilter.limit > maxLimit ) {
+				console.log( 'max limit ', maxLimit );
 			}
 			filter = customFilter;
 		} else {
@@ -64,22 +69,33 @@ export class BlockController {
 
 		if ( blocks.length ) {
 			for ( const block of blocks ) {
-				const era: Era | null = await this.eraRepository.findOne( {
-					where: { id: block.eraId },
-					fields: ['validatorsWeights', 'circulatingSupply'],
-				} );
-				if ( era ) {
+				// Only query Era if no "fields" are not set, or they include weight or circulating.
+				// That saves some resources  and makes large queries faster.
+				if (
+					!filter.fields ||
 					// @ts-ignore
-					if ( !filter.fields || filter.fields.indexOf( 'validatorsWeights' ) > -1 ) {
-						block.validatorsWeights = era.validatorsWeights;
-					}
+					filter.fields.indexOf( 'validatorsWeights' ) > -1 ||
 					// @ts-ignore
-					if ( !filter.fields || filter.fields.indexOf( 'circulatingSupply' ) > -1 ) {
-						block.circulatingSupply = era.circulatingSupply;
-					}
+					filter.fields.indexOf( 'circulatingSupply' ) > -1
+				) {
+					const era: Era | null = await this.eraRepository.findOne( {
+						where: { id: block.eraId },
+						fields: ['validatorsWeights', 'circulatingSupply'],
+					} );
+					if ( era ) {
+						// @ts-ignore
+						if ( !filter.fields || filter.fields.indexOf( 'validatorsWeights' ) > -1 ) {
+							block.validatorsWeights = era.validatorsWeights;
+						}
+						// @ts-ignore
+						if ( !filter.fields || filter.fields.indexOf( 'circulatingSupply' ) > -1 ) {
+							block.circulatingSupply = era.circulatingSupply;
+						}
 
+					}
 				}
 
+				// Get time difference only if needed, to speed up the response.
 				// @ts-ignore
 				if ( !filter || !filter.fields || filter.fields.indexOf( 'prevBlockTime' ) > -1 ) {
 					block.prevBlockTime = 0;

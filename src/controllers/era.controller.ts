@@ -1,5 +1,7 @@
+import { inject } from '@loopback/core';
 import { Filter, repository } from '@loopback/repository';
-import { get, getModelSchemaRef, param, response } from '@loopback/rest';
+import { get, getModelSchemaRef, param, response, RestBindings } from '@loopback/rest';
+import { Request } from 'express';
 import { IncorrectData, NotFound } from '../errors/errors';
 import { Era } from '../models';
 import { EraRepository } from '../repositories';
@@ -80,8 +82,8 @@ export class EraController {
 	@response( 200, {
 		description: `Last Completed Era metrics when called without params.
         Can be queried by either "eraId", "blockHeight" or "timestamp" (e.g. "2021-04-09T09:31:36Z").
-        Order example: "id DESC". Max limit for simple queries is 10000 records (when used without a Custom Filter),
-        but avoid using limits over 100 in the Swagger UI to prevent browser from hanging.
+        Order example: "id DESC". Max limit is 1000 records,
+        and 100 records in the Swagger UI to prevent browser from hanging when rendering.
         "Filter" can be a custom JSON object. Please see the documentation for examples.
         `,
 		content: {
@@ -95,6 +97,7 @@ export class EraController {
 		},
 	} )
 	async find(
+		@inject( RestBindings.Http.REQUEST ) request: Request,
 		@param.query.number( 'id' ) id?: number,
 		@param.query.number( 'blockHeight' ) blockHeight?: number,
 		@param.query.dateTime( 'timestamp' ) timestamp?: string,
@@ -103,14 +106,17 @@ export class EraController {
 		@param.query.string( 'skip' ) skip?: number,
 		@param.query.object( 'filter' ) customFilter?: Filter<Era>,
 	): Promise<Era[]> {
+		// Limit responses depending on how it was called.
+		// @ts-ignore
+		const maxLimit = request?.headers?.host && request.headers.host.indexOf( 'caspermetrics.io' ) > -1 ? 100 : 1000;
+
 		// If a custom "filter" object is used it ignores and overrides other parameters.
 		if ( customFilter ) {
 			if ( !customFilter ) {
 				throw new IncorrectData( 'Incorrect empty filter' );
 			}
-			// Limit responses to 10 when using custom Filter
-			if ( !customFilter.limit || customFilter.limit > 10 ) {
-				customFilter.limit = 10;
+			if ( !customFilter.limit || customFilter.limit > maxLimit ) {
+				customFilter.limit = maxLimit;
 			}
 			return this.eraRepository.find( customFilter ).catch( () => {
 				throw new IncorrectData( 'Incorrect query' );
@@ -119,7 +125,7 @@ export class EraController {
 
 		let filter: Filter<Era> = {
 			// TODO: Rename id to eraId for consistency.
-			limit: limit ? Math.min( limit, 10000 ) : 1,
+			limit: limit ? Math.min( limit, skip == 0 && order ? 10000 : maxLimit ) : 1,
 			order: order ? order : ['id DESC'],
 			skip: ( id !== undefined || blockHeight !== undefined || timestamp ) ? 0 : 1,
 			where: this._calcSupplyQueryFilter( id, blockHeight, timestamp ),
