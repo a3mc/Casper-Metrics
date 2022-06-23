@@ -103,7 +103,7 @@ Deploy Redis:
   $ docker run --name casper-metrics-redis --restart=always -d -p 127.0.0.1:6379:6379 redis
 ```
 
-We provide relatively fresh ( block 743151 ) database dump: [mysqldump_30_Apr_2022_13_33_19.sql](http://161.97.84.146/mysqldump_30_Apr_2022_13_33_19.sql)
+We provide relatively fresh ( block 884536 ) database dump: [mysqldump_23_Jun_2022_13_25_28.sql](http://161.97.84.146/mysqldump_23_Jun_2022_13_25_28.sql)
 
 In any case, where we need to import database, Redis should be flushed to avoid calculation disorder:
 
@@ -124,15 +124,15 @@ Standard db import sequence:
 Download database dump:
 
 ```bash
-  $ cd ~ && wget http://161.97.84.146/mysqldump_30_Apr_2022_13_33_19.sql
+  $ cd ~ && wget http://161.97.84.146/mysqldump_23_Jun_2022_13_25_28.sql
 ```
 
 Import in to previously created `mainnet` db:
 
 ```bash
-  $ docker exec -i casper-metrics-mysql mysql -u"root" -p"password123" mainnet < mysqldump_30_Apr_2022_13_33_19.sql
+  $ docker exec -i casper-metrics-mysql mysql -u"root" -p"password123" mainnet < mysqldump_23_Jun_2022_13_25_28.sql
 ```
-Check last block ( 743151 ) and availability:
+Check last block ( 884536 ) and availability:
 
 ```bash
   $ mysql -u apiuser -p -h 127.0.0.1 -P 3306 -e 'use mainnet; select id from Block ORDER BY id desc LIMIT 1';
