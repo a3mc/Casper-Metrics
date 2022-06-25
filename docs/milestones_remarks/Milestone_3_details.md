@@ -9,7 +9,7 @@ As the development part was submitted, reviewed and delivered in the first two M
 
 - __Check generated metrics in various ways to ensure it’s always accurate;__
 
-We've done an extensive manual and automated research to ensure that system contains and serves valid data. We compared the data served by our API with queries from mainnet active validator directly. We've created a bash script that make calls to both API and a mainnet RPC and compares the results. It can be found in the [E2E](https://github.com/a3mc/Casper-Metrics/blob/master/docs/E2E/) folder.
+We've done an extensive manual and automated research to ensure that system contains and serves valid data. We compared the data served by our API with queries from mainnet active validator directly. We've created a bash script that make calls to both API and a mainnet RPC and compares the results. It can be found in the [E2E](https://github.com/a3mc/Casper-Metrics/blob/master/e2e/e2e.sh).
 
 - __Create technical documentation on the project;__
 
@@ -21,7 +21,7 @@ The user documentation on how to use the API, limitations and other details is c
 
 - __Create unit and e2e tests to make sure no parts have errors__
 
-Project contains over a hundred of positive and negative tests covering all the endpoints, including Admin endpoints. Tests are located in the [Tests folder](https://github.com/a3mc/Casper-Metrics/blob/master/src/__tests__/acceptance/). The E2E tests and load tests are created, and can be found in [E2E](https://github.com/a3mc/Casper-Metrics/blob/master/docs/E2E/) folder.
+Project contains over a hundred of positive and negative tests covering all the endpoints, including Admin endpoints. Tests are located in the [Tests folder](https://github.com/a3mc/Casper-Metrics/blob/master/src/__tests__/acceptance/). The E2E tests and load tests are created, and can be found in [E2E](https://github.com/a3mc/Casper-Metrics/blob/master/e2e/) folder.
 
 - __Add or alter the endpoints as requested by the community. This may include new metrics to track or more filters to apply__
 
