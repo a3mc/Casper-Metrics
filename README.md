@@ -72,6 +72,8 @@ You are welcome to add your suggestions and to contribute to the project. Please
 
 Please follow the best practices, follow the code structure and make sure that your suggestion is really valuable for the project and well-formed. When you open an issue, please make sure you provide enough details on how to reproduce it. Don't use explicit lexis and be polite to other members.
 
+Please see [CODE OF CONDUCT](https://github.com/a3mc/Casper-Metrics/blob/master/CODE_OF_CONDUCT.md) for full details.
+
 ### License
 
 This project is licensed under [MIT license](https://github.com/a3mc/Casper-Metrics/blob/master/license.txt).
