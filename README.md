@@ -21,7 +21,7 @@ This engine was built specifically for circulating supply calculation, however n
     * _Secure administration panel with the permissions management allows administrators to select the transfers which they believe are a part of circulating supply._
     * _Administration panel includes a tool to adjust vesting schedule of initial genesis validators accounts._
 
-Current work can be observed at [caspermetrics.io](https://caspermetrics.io), administrator panel is accessible at [admin.caspermetrics.io](https://admin.caspermetrics.io), API endpoint [mainnet.cspr.art3mis.net](https://mainnet.cspr.art3mis.net)
+The project can be observed at [caspermetrics.io](https://caspermetrics.io), administrator panel is accessible at [admin.caspermetrics.io](https://admin.caspermetrics.io), API endpoint [mainnet.cspr.art3mis.net](https://mainnet.cspr.art3mis.net)
 
 All elements are independent and can be deployed separately, depending on the particular needs, as for example to run only the crawler to populate the database with transactions. Admin interface has a search section which accepts _input HEX_ as well as _account hash_ and _transaction hash_.
 
@@ -33,19 +33,15 @@ API engine is constructed on top of the Loopback framework. Multiple crawler pro
 
 ### Documentation:
 
+Full documentation can be found in the [docs](https://github.com/a3mc/Casper-Metrics/blob/master/docs/) folder.
+
 * [Hardware Requirements](https://github.com/a3mc/Casper-Metrics/blob/master/docs/REQUIREMENTS.md)
 * [Installation](https://github.com/a3mc/Casper-Metrics/blob/master/docs/INSTALLATION.md) _(introduction basic)_
 * [Deploy In Production](https://github.com/a3mc/Casper-Metrics/blob/master/docs/PRODUCTION.md)
 * [Code Overview](https://github.com/a3mc/Casper-Metrics/blob/master/docs/CODE_OVERVIEW.md)
 * [API Overview](https://github.com/a3mc/Casper-Metrics/blob/master/docs/API_OVERVIEW.md)
 
-*Docs to be delivered with the Milestone 3:*
-* Front Functional Description
-* Admin Panel Functional Description
-
 The project was initiated with the proposal [#86](https://portal.devxdao.com/app/proposal/86) and successfully passed [DevDao](https://www.devxdao.com) pipeline on 9/29/2021
-
-Current development stage: milestone #2
 
 Based on [casper.network](https://casper.network/en/network)
 
@@ -61,16 +57,13 @@ Based on [casper.network](https://casper.network/en/network)
 * [NodeJS](https://nodejs.org)
 * [PM2](https://pm2.keymetrics.io)
 
-
-### Documentation
-
-Documentation can be found in the `docs` folder and will be significantly updated in the Milestone 3 of the project.
-
 ### Contributing and Code of Conduct
 
 You are welcome to add your suggestions and to contribute to the project. Please create PRs against develop branch if you want to contribute. We reserve the right to ignore or decline any PRs and not to respond to the messages.
 
 Please follow the best practices, follow the code structure and make sure that your suggestion is really valuable for the project and well-formed. When you open an issue, please make sure you provide enough details on how to reproduce it. Don't use explicit lexis and be polite to other members.
+
+Please see [CODE OF CONDUCT](https://github.com/a3mc/Casper-Metrics/blob/master/CODE_OF_CONDUCT.md) for full details.
 
 ### License
 
