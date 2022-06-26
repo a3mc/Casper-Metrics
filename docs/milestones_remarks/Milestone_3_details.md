@@ -17,7 +17,7 @@ The full documentation of the Quick Installation, Code Overview, Deployment in p
 
 - __Create user documentation, explaining how to use API;__
 
-The user documentation on how to use the API, limitations and other details is created and available at (caspermetrics.io)[https://caspermetrics.io/docs]. It is available in the `docs` folder, in [API Overview](https://github.com/a3mc/Casper-Metrics/blob/master/docs/API_OVERVIEW.md)
+The user documentation on how to use the API, limitations and other details is created and available at [caspermetrics.io](https://caspermetrics.io/docs). It is also available in the `docs` folder, in [API Overview](https://github.com/a3mc/Casper-Metrics/blob/master/docs/API_OVERVIEW.md)
 
 - __Create unit and e2e tests to make sure no parts have errors__
 
