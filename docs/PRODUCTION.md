@@ -15,7 +15,7 @@ Each of these components is recommended to be deployed separately.
 
 __Database__
 
-Collected data stored in MySQL database, doing asynchronous crawling process where is a lot of simultaneous connections created, this will require database tuning, database need to be optimised for high performance, connections need to be increased depends on crawler setup, crawler can be configured by following guidance in [.env] and adjustments can be made based on stats gained from monitoring dashboards. See monitoring section below.
+Collected data stored in MySQL database, doing asynchronous crawling process where is a lot of simultaneous connections created, this will require database tuning, database need to be optimised for high performance, connections need to be increased depends on crawler setup, crawler can be configured by following guidance in [example.env](https://github.com/a3mc/Casper-Metrics/blob/master/example.env) and adjustments can be made based on stats gained from monitoring dashboards. See monitoring section below.
 
 Depends on particular need, MySQL can be hosted together with Master Crawler and cluster can be spread between Replication Operators, in most cases dev-ops have database in hands and configuration will be new database creation and this is it.
 
