@@ -39,45 +39,28 @@ export class CrawlerController {
 		@repository( TransferRepository ) public transferRepository: TransferRepository,
 	) {
 		// Establish a connection with separate workers that help to crawl blocks as a separate process.
-		this.redisService.sub.client.on( 'message', ( channel: string, message: string ) => {
 
-			if ( channel === 'register' ) {
-				logger.debug( 'Registered worker %s', message );
-				this.workers.push( Number( message ) );
-			}
-			if ( channel === 'done' ) {
-				this.processedBlocks++;
-			}
-			if ( channel === 'error' ) {
-				this.errorBlocks++;
-			}
-			if ( channel === 'control' && message === 'finished' ) {
-				this.finishedWorkers++;
-				logger.debug( 'Worker finished: %d', this.finishedWorkers );
-
-				if ( this.finishedWorkers >= this.workers.length ) {
-					clearInterval( this.meterInterval );
-					logger.info( 'Processed/Queued blocks: %d / %d', this.processedBlocks, this.queuedBlocks );
-					if ( this.queuedBlocks === this.processedBlocks ) {
-						this.startCalculating();
-					} else {
-						this.scheduleCrawling();
-					}
-				}
-			}
-		} );
-		this.redisService.sub.client.subscribe( 'control' );
-		this.redisService.sub.client.subscribe( 'done' );
-		this.redisService.sub.client.subscribe( 'error' );
-		this.redisService.sub.client.subscribe( 'register' );
 	}
 
 	public async start(): Promise<void> {
-		await this.redisService.client.setAsync( 'calculating', 0 );
+		logger.debug( 'Processing eras' );
+		const eras = await this.eraRepository.find();
+		logger.debug( eras.length )
+		for ( const era of eras ) {
+			const startBlock = await this.blocksRepository.find( {where: {blockHeight: era.startBlock}});
+			const endBlock = await this.blocksRepository.find( {where: {blockHeight: era.endBlock}});
 
-		this.crawlerTimer = setTimeout( async () => {
-			await this.crawl();
-		}, 5000 );
+			if ( startBlock && startBlock.length ) {
+				era.start = startBlock[0].timestamp;
+			}
+			if ( endBlock && endBlock.length ) {
+				era.end = endBlock[0].timestamp;
+			}
+			await this.eraRepository.save( era );
+
+			logger.debug( 'Era %d %s %s', era.id, era.start, era.end );
+		}
+
 	}
 
 	private reset(): void {
