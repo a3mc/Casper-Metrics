@@ -535,7 +535,7 @@ export class CrawlerService {
 				transfersCirculatingSupply: BigInt( 0 ),
 				rewardsCirculatingSupply: BigInt( 0 ),
 				endBlock: switchBlock.blockHeight,
-				end: moment( switchBlock.timestamp ).add( -1, 'ms' ).format(),
+				end: switchBlock.timestamp,
 				stakedDiffThisEra: stakedInfo.amount,
 				stakedThisEra: stakedInfo.delegated,
 				undelegatedThisEra: stakedInfo.undelegated,

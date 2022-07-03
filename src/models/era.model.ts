@@ -90,10 +90,7 @@ export class Era extends Entity {
 		required: true,
 		mysql: {
 			columnName: 'start',
-			dataType: 'timestamp',
-			dataLength: null,
-			dataPrecision: null,
-			dataScale: null,
+			dataType: 'timestamp(3)',
 			nullable: 'N',
 		},
 	} )
@@ -104,10 +101,7 @@ export class Era extends Entity {
 		required: false,
 		mysql: {
 			columnName: 'end',
-			dataType: 'timestamp',
-			dataLength: null,
-			dataPrecision: null,
-			dataScale: null,
+			dataType: 'timestamp(3)',
 			nullable: 'Y',
 		},
 	} )
