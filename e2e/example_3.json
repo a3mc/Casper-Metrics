@@ -1,0 +1,12 @@
+{
+  "where": {
+    "and": [
+      { "blockHeight": { "gte": 10000 } },
+      { "blockHeight": { "lte": 879946 } }
+    ],
+    "switch": { "eq": true }
+  },
+  "fields": ["blockHeight", "switch","eraId"],
+  "order": ["blockHeight ASC"],
+  "limit": 4
+}

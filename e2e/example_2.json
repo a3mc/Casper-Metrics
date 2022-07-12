@@ -1,0 +1,12 @@
+{
+  "where": {
+    "and": [
+      { "id": { "gte": 2827 } },
+      { "id": { "lte": 2871 } }
+    ],
+    "validatorsCount": { "gt": 1 }
+  },
+  "fields": ["id", "validatorsCount","endBlock"],
+  "order": ["validatorsCount ASC"],
+  "limit": 4
+}

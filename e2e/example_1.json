@@ -1,0 +1,11 @@
+{
+  "where": {
+    "and": [
+      { "startBlock": { "gte": 862000 } },
+      { "startBlock": { "lte": 863754 } }
+    ]
+  },
+  "fields": ["id","rewards"],
+  "order": ["rewards DESC"],
+  "limit": 2
+}
