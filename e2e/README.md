@@ -19,7 +19,7 @@ Requirements:
 * Link to the platform API in script header _( already set to https://mainnet.cspr.art3mis.net )_
 * [Ubuntu](https://help.ubuntu.com) or any [Debian](https://www.debian.org/) base, can be run on Mac
 * bash shell
-* access to internet _( outbound only required )_
+* access to internet
 
 * `jq` for json processing _( install: `apt install jq` )_
 * `bc` for precision calculation  _( install: `apt install bc`)_
