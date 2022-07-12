@@ -2,6 +2,7 @@
 
 Platform API not only replies on traditional queries, but also provides various filtering options. As filters can be relatively complex to understand at first glance, we provide here e2e.sh script which not only goes trough a significant amount of functions and combinations of queries, but also gives a brief overview of the API functionality in general. This script can be run by anyone for education or testing purposes and gives some cool ideas on what is possible to be done with API itself.
 
+
 **Folder content:**
 
 * _e2e.sh_ - end-to-end tests and educational script
@@ -26,7 +27,11 @@ Requirements:
 
 * make sure all 3 `example_x.json` files are present in the same folder with `e2e.sh`
 
-Make file is executable: `chmod +x e2e.sh`, execute: `./e2e.sh` or `bash e2e.sh`
+_Please take a look on the content of the e2e script._
+
+Make file is executable: `chmod +x e2e.sh`
+
+Execute: `./e2e.sh` or `bash e2e.sh`
 
 In rare case, if for some reason you want to do own load tests _( not recommended )_ , we provide [Apache JMeter™](https://jmeter.apache.org/) template:
 
