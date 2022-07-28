@@ -6,13 +6,17 @@ import { NotAllowed, NotFound } from '../errors/errors';
 import { TokenServiceConstants } from '../keys';
 import { UserRepository } from '../repositories';
 import TOKEN_EXPIRES_IN_VALUE = TokenServiceConstants.TOKEN_EXPIRES_IN_VALUE;
-
+import TOKEN_SECRET_VALUE = TokenServiceConstants.TOKEN_SECRET_VALUE;
 const jwt = require( 'jsonwebtoken' );
+
+// Promisify is used for the sign and veryfy methods to make it more elegant when dealing in async manner.
 const signAsync = promisify( jwt.sign );
 const verifyAsync = promisify( jwt.verify );
 
+// This service class issues or validates a given token based on the secret.
 export class JWTService {
-	public readonly jwtSecret: string = 'FIXME!TEST';
+	// Secret value comes from the env file, but it's used only for admin part.
+	public readonly jwtSecret: string = TOKEN_SECRET_VALUE || 'empty';
 	public readonly expiresSecret: string = TOKEN_EXPIRES_IN_VALUE;
 
 	constructor(
@@ -21,6 +25,7 @@ export class JWTService {
 	) {
 	}
 
+	// Generate and return a new token based on the given user profile.
 	async generateToken( userProfile: UserProfile ): Promise<string> {
 		if ( !userProfile ) {
 			throw new HttpErrors.Unauthorized(
@@ -40,8 +45,8 @@ export class JWTService {
 		}
 	}
 
+	// Return a user profile if token is valid or thrown an error.
 	async verifyToken( token: string ): Promise<UserProfile> {
-
 		if ( !token ) {
 			throw new HttpErrors.Unauthorized(
 				`Error verifying token: 'token' is null`,

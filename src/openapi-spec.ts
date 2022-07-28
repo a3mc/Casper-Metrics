@@ -1,3 +1,5 @@
+// When building the project, we can extract the OpenAPI spec so it han be hosted individually.
+
 import { ApplicationConfig } from '@loopback/core';
 import { CasperMetricsApplication } from './application';
 
@@ -11,6 +13,7 @@ async function exportOpenApiSpec(): Promise<void> {
 			host: process.env.HOST ?? 'localhost',
 		},
 	};
+	// Once we get the output file path, we use built-in Loopback's ability to export the specification.
 	const outFile = process.argv[2] ?? '';
 	const app = new CasperMetricsApplication( config );
 	await app.boot();

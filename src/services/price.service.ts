@@ -9,11 +9,14 @@ import { EraRepository, PriceRepository } from '../repositories';
 
 dotenv.config();
 
+// A service for fetching market data from an external service.
 @injectable( { scope: BindingScope.TRANSIENT } )
 export class PriceService {
 
+	// It was found that it's safe to keep it at 2k, to prevent possible rate limiting.
 	private _requestsLimit = 2000;
 
+	// Requires access to price and era repositories to store and operate the data.
 	constructor(
 		@repository( PriceRepository ) public priceRepository: PriceRepository,
 		@repository( EraRepository ) public eraRepository: EraRepository,
@@ -50,10 +53,12 @@ export class PriceService {
 		}
 	}
 
+	// Get the batch of data.
 	private async _updatePrice(): Promise<void> {
 		const lastDate: moment.Moment = await this._getLastStoredPriceDate();
 		const toTs: number = lastDate.add( this._requestsLimit, 'hours' ).unix();
 
+		// A cancel token is used with timeout to avoid a well-know problem with axious when it may hang on network errors.
 		const source = axios.CancelToken.source();
 		const timeout = setTimeout(() => {
 			source.cancel();
@@ -67,17 +72,23 @@ export class PriceService {
 				timeout: 60000
 			}
 		).catch( () => {
+			// If we had a problem, we can get it on the next main loop check.
 			logger.warn( 'Error fetching price data. Failed to connect' );
 		} );
+		// We can clear the "safe" timeout once we get some result.
 		clearTimeout( timeout );
 
+		// Check if the returned data is in the expected format and valid.
 		if ( result && result.status === 200 && result.data?.Data?.Data?.length ) {
+			// We save market data for each hour in the batch.
 			for ( const hour of result.data.Data.Data ) {
+				// Only save the values to the Price repository if we don't have them already there.
 				const existingRecord = await this.priceRepository.find( {
 					where: { date: moment( hour.time * 1000 ).format() },
 				} );
 
 				if ( !existingRecord.length ) {
+					// Save a record.
 					await this.priceRepository.create( {
 						date: moment( hour.time * 1000 ).format(),
 						low: hour.low,
@@ -92,6 +103,7 @@ export class PriceService {
 		}
 	}
 
+	// Find out the last saved market data we have.
 	private async _getLastStoredPriceDate(): Promise<moment.Moment> {
 		const lastRecord = await this.priceRepository.find( {
 			limit: 1,
@@ -102,6 +114,7 @@ export class PriceService {
 			return moment( lastRecord[0].date );
 		}
 
+		// If we don't have any market data, we start from genesis.
 		const firstEra = await this.eraRepository.findById( 0 );
 		return moment( firstEra.start );
 	}

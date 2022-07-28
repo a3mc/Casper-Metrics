@@ -6,8 +6,10 @@ import { logger } from '../logger';
 import { Era, Transfer, ValidatorsUnlock } from '../models';
 import { BlockRepository, EraRepository, ProcessingRepository, TransferRepository, ValidatorsUnlockRepository } from '../repositories';
 
+// Service to make calculation regarding to the circulating supply and to update the records.
 @injectable( { scope: BindingScope.TRANSIENT } )
 export class CirculatingService {
+	// Depends on the repositories to get and store data.
 	constructor(
 		@repository( EraRepository )
 		public eraRepository: EraRepository,
@@ -22,6 +24,7 @@ export class CirculatingService {
 	) {
 	}
 
+	// Performs update of all eras if new values were set in the admin interface.
 	public async calculateCirculatingSupply(): Promise<void> {
 		// Set a flag to prevent saving when update is in progress.
 		await this._setStatus( 100 );
@@ -35,16 +38,19 @@ export class CirculatingService {
 
 		let eraCounter = 0;
 
+		// Use a counter to be able to visually display the progress, as it takes a while to complete.
 		const processTimer = setInterval( () => {
 			this._setStatus( 100 - Math.round( ( 100 / eras.length ) * eraCounter ) );
 		}, 1000 );
 
 		for ( const era of eras ) {
+			// Update every era and increase the progress counter.
 			await this.updateEraCirculatingSupply( era );
 			eraCounter ++;
 		}
 
 		clearInterval( processTimer );
+		// Turn off the status, but setting remaining progress to zero.
 		await this._setStatus( 0 );
 
 		logger.debug( 'Finished updating Eras' );
@@ -112,6 +118,7 @@ export class CirculatingService {
 		} );
 	}
 
+	// Used for storing the current progress, that can be displayed visually.
 	private async _setStatus( value: number ): Promise<void> {
 		// Set lock status while processing
 		let status = await this.processingRepository.findOne( {
@@ -132,6 +139,7 @@ export class CirculatingService {
 		}
 	}
 
+	// Helper method to convert from motes with rounding.
 	private _denominate( amount: bigint ): bigint {
 		return BigInt( Math.round( Number( amount ) / 1000000000  ) );
 	}

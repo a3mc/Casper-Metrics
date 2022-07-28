@@ -4,9 +4,11 @@ import { UserProfile } from '@loopback/security';
 import moment from 'moment';
 import { AdminLogRepository, UserRepository } from '../repositories';
 
+// Service to save actions that happen in admin panel to the database for history purpose.
 @injectable( { scope: BindingScope.TRANSIENT } )
 export class AdminLogService {
 
+	// Depends on the user and log repositories.
 	constructor(
 		@repository( AdminLogRepository )
 		public adminLogRepository: AdminLogRepository,
@@ -15,6 +17,7 @@ export class AdminLogService {
 	) {
 	}
 
+	// Make a record to the database with the given values: who did what, when.
 	public async write(
 		currentUser: UserProfile,
 		action: string,
