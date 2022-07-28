@@ -2,6 +2,7 @@ import { repository } from '@loopback/repository';
 import { get, oas, OperationVisibility, response } from '@loopback/rest';
 import { PeersRepository } from '../repositories';
 
+// REST API controller class for pinging health status, served by the Loopback framework.
 export class HealthController {
 	constructor(
 		@repository( PeersRepository )

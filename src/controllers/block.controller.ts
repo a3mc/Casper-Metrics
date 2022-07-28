@@ -7,6 +7,7 @@ import { IncorrectData, NotFound } from '../errors/errors';
 import { Block, Era } from '../models';
 import { BlockRepository, EraRepository } from '../repositories';
 
+// REST API controller class for operations with Blocks, served by the Loopback framework.
 export class BlockController {
 	constructor(
 		@repository( BlockRepository )

@@ -6,6 +6,7 @@ import { IncorrectData, NotFound } from '../errors/errors';
 import { Era } from '../models';
 import { EraRepository } from '../repositories';
 
+// REST API controller class for operations with Eras, served by the Loopback framework.
 export class EraController {
 	constructor(
 		@repository( EraRepository )

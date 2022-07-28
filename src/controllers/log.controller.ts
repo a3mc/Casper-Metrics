@@ -4,6 +4,7 @@ import { get, getModelSchemaRef, oas, OperationVisibility, param, post, requestB
 import { AdminLog } from '../models';
 import { AdminLogRepository } from '../repositories';
 
+// Admin-only REST API controller class for operations with Admin logs, served by the Loopback framework.
 @oas.visibility( OperationVisibility.UNDOCUMENTED )
 @authenticate( { strategy: 'jwt' } )
 export class LogController {

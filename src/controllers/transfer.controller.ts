@@ -14,6 +14,7 @@ import { AdminLogService, CirculatingService } from '../services';
 const { Graph } = require( 'dsa.js' );
 const clone = require( 'node-clone-js' );
 
+// REST API controller class for operations with Transfers, served by the Loopback framework.
 export class TransferController {
 	constructor(
 		@repository( TransferRepository )

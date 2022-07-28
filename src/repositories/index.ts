@@ -1,3 +1,4 @@
+// All repositories are exported here to be accessible by the framework.
 export * from './era.repository';
 export * from './block.repository';
 export * from './transfer.repository';

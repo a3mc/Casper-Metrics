@@ -1,3 +1,8 @@
+// As the application uses external service to get peers information, this mock is provided to ensure it's working even
+// If there's no access to the external service.
+// This data is stored in the database, represented by the Peers model, as a separate table.
+// All operations with it are performed via Peers repository connected to that model.
+
 export const geodata =
 	{
 		'version': 0,

@@ -7,6 +7,7 @@ import { PriceRepository } from '../repositories';
 
 const CoinGeckoClient = new CoinGecko();
 
+// REST API controller class for operations with Market data, served by the Loopback framework.
 export class PriceController {
 	constructor(
 		@repository( PriceRepository )

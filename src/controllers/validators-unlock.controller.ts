@@ -11,6 +11,7 @@ import { ValidatorsUnlock } from '../models';
 import { ProcessingRepository, ValidatorsUnlockRepository } from '../repositories';
 import { AdminLogService, CirculatingService } from '../services';
 
+// Admin-only REST API controller class for operations with Unlock schedule, served by the Loopback framework.
 @oas.visibility( OperationVisibility.UNDOCUMENTED )
 export class ValidatorsUnlockController {
 	constructor(

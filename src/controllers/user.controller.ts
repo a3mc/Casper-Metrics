@@ -16,6 +16,7 @@ import { BcryptHasher } from '../services/hash.password';
 import { JWTService } from '../services/jwt.service';
 import { MyUserService } from '../services/user.service';
 
+// Admin-only REST API controller class for operations with Users, served by the Loopback framework.
 @oas.visibility( OperationVisibility.UNDOCUMENTED )
 export class UserController {
 	constructor(

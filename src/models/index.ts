@@ -1,3 +1,4 @@
+// All models are exported from here for automatic binding in the framework.
 export * from './era.model';
 export * from './block.model';
 export * from './transfer.model';
