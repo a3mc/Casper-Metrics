@@ -7,6 +7,8 @@ import { Era } from '../models';
 import { EraRepository } from '../repositories';
 
 // REST API controller class for operations with Eras, served by the Loopback framework.
+// You can find more details about each endpoint in their descriptions and related schemas.
+// Some not self-explanatory parts are covered with the additional comments.
 export class EraController {
 	constructor(
 		@repository( EraRepository )
@@ -14,6 +16,7 @@ export class EraController {
 	) {
 	}
 
+	// Endpoint for getting circulating supply
 	@get( 'era/circulating' )
 	@response( 200, {
 		description: `Last Completed Era "Circulating Supply" when called without params.
@@ -46,6 +49,7 @@ export class EraController {
 		return lastRecord.circulatingSupply.toString();
 	}
 
+	// Get total supply for era.
 	@get( 'era/total' )
 	@response( 200, {
 		description: `Last Completed Era "Total Supply" when called without params.
@@ -79,6 +83,7 @@ export class EraController {
 		return lastRecord.totalSupply.toString();
 	}
 
+	// Get an era or a range of eras. Custom filters can be used.
 	@get( '/era' )
 	@response( 200, {
 		description: `Last Completed Era metrics when called without params.
@@ -125,10 +130,11 @@ export class EraController {
 		}
 
 		let filter: Filter<Era> = {
-			// TODO: Rename id to eraId for consistency.
+			// Defined the max limit of items to be returned.
 			limit: limit ? Math.min( limit, skip == 0 && order ? 10000 : maxLimit ) : 1,
 			order: order ? order : ['id DESC'],
 			skip: ( id !== undefined || blockHeight !== undefined || timestamp ) ? 0 : 1,
+			// Using a helper filter to find by block heights or timestamp
 			where: this._calcSupplyQueryFilter( id, blockHeight, timestamp ),
 		};
 
@@ -141,6 +147,7 @@ export class EraController {
 		} );
 	}
 
+	// A helper method providing a search filter
 	private _calcSupplyQueryFilter(
 		id: number | undefined,
 		blockHeight: number | undefined,

@@ -26,6 +26,7 @@ export class ValidatorsUnlockController {
 	) {
 	}
 
+	// Admin endpoint for updating vesting schedule.
 	@authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
 	@post( '/validators-unlock' )
 	@response( 200, {
@@ -50,6 +51,7 @@ export class ValidatorsUnlockController {
 
 		await this.validatorsUnlockRepository.deleteAll();
 
+		// Populate through the first 14 days.
 		for ( let day = 0; day < 14; day++ ) {
 			await this.validatorsUnlockRepository.create( {
 				amount: (
@@ -60,6 +62,7 @@ export class ValidatorsUnlockController {
 			} );
 		}
 
+		// Add custom unlocks on given dates.
 		for ( const custom of unlocksData.custom ) {
 			await this.validatorsUnlockRepository.create( {
 				amount: ( BigInt( custom.amount ) * BigInt( 1000000000 ) ).toString(),
@@ -69,6 +72,7 @@ export class ValidatorsUnlockController {
 		}
 	}
 
+	// List unlock schedule.
 	@authenticate( { strategy: 'jwt' } )
 	@get( '/validators-unlock' )
 	@response( 200, {

@@ -16,6 +16,7 @@ const clone = require( 'node-clone-js' );
 
 // REST API controller class for operations with Transfers, served by the Loopback framework.
 export class TransferController {
+	// Requires a few repositories as it makes complex queries.
 	constructor(
 		@repository( TransferRepository )
 		public transferRepository: TransferRepository,
@@ -34,6 +35,7 @@ export class TransferController {
 	) {
 	}
 
+	// Protected endpoint for admin part to draw trees of transfers and allowing various filters.
 	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@authenticate( { strategy: 'jwt' } )
 	@get( '/transfers' )
@@ -57,6 +59,7 @@ export class TransferController {
 		@param.query.string( 'deployHash' ) deployHash?: string,
 		@param.query.string( 'sort' ) sort = 'blockHeight DESC',
 	): Promise<any> {
+		// Set the default filter - to draw the tree of initial transfers.
 		let filter: any = {
 			where: {
 				and: [
@@ -65,6 +68,8 @@ export class TransferController {
 				],
 			},
 		};
+
+		// If more parameters are set prepare the filter.
 
 		if ( toHash ) {
 			if ( toHash.indexOf( 'account-hash' ) === -1 ) {
@@ -155,6 +160,8 @@ export class TransferController {
 			approvedFilter.where.approved = true;
 		}
 
+		// Allow pagination.
+
 		if ( perPage && page ) {
 			filter.limit = perPage;
 			filter.skip = perPage * ( page - 1 );
@@ -162,13 +169,17 @@ export class TransferController {
 
 		filter.order = [sort];
 
+		// Once filters are prepared get the data.
+
 		const data = await this.transferRepository.find( filter );
 
+		// Calculate the sum of returned data amounts, only admin-approved transfers.
 		const approvedItems = await this.transferRepository.find( approvedFilter );
 		let approvedSum = approvedItems.reduce( ( a, b ) => {
 			return a + BigInt( b.amount );
 		}, BigInt( 0 ) );
 
+		// Calculate the total sum.
 		const allData = await this.transferRepository.find( allFilter );
 		let totalSum = allData.reduce( ( a, b ) => {
 			return a + BigInt( b.amount );
@@ -182,6 +193,7 @@ export class TransferController {
 		};
 	}
 
+	// Simple admin-only protected endpoint for getting data for the visual tree.
 	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@authenticate( { strategy: 'jwt' } )
 	@get( '/transfers_tree' )
@@ -214,6 +226,7 @@ export class TransferController {
 		};
 	}
 
+	// Public endpoint to get transfers data per era.
 	@get( '/transfersByEraId' )
 	@response( 200, {
 		description: 'Transfers filtered by Era Id. Max limit is 200.',
@@ -230,6 +243,7 @@ export class TransferController {
 		@param.query.number( 'eraId' ) eraId?: number,
 		@param.query.number( 'limit' ) limit: number = 20,
 	): Promise<any> {
+		// Apply limits.
 		if ( limit > 200 ) {
 			limit = 200;
 		}
@@ -254,6 +268,8 @@ export class TransferController {
 
 		let transfers = await this.transferRepository.find( filter );
 
+		// Sort the results so the greater amounts are displayed first.
+		// Other can be cut if hit the limit.
 		transfers.sort( ( a: any, b: any ) => {
 			if ( parseInt( a.amount ) > parseInt( b.amount ) ) {
 				return -1;
@@ -296,6 +312,7 @@ export class TransferController {
 		};
 	}
 
+	// Protected endpoint for storing additional data for an account.
 	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
 	@post( '/transfers/name' )
@@ -337,6 +354,7 @@ export class TransferController {
 		}
 	}
 
+	// Admin-only endpoint to trigger a re-calculation process when some parameters of approved transfers were changed.
 	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
 	@post( '/transfers/calculate' )
@@ -360,6 +378,7 @@ export class TransferController {
 		this.circulatingService.calculateCirculatingSupply();
 	}
 
+	// Admin-only enpoint to mark transfers as approved and being a part of unlocked funds.
 	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
 	@post( '/transfers/approve' )
@@ -379,6 +398,7 @@ export class TransferController {
 		}
 
 		if ( inbound ) {
+			// While batch process is async, it works in background as takes time to finish.
 			this._processBatch( { where: { toHash: inbound } }, currentUser, saveType );
 			return;
 		} else if ( outbound ) {
@@ -402,6 +422,7 @@ export class TransferController {
 				sum += Number( BigInt( tx.amount ) / BigInt( 1000000000 ) );
 			}
 
+			// Write the action to the admin log.
 			await this.adminLogService.write(
 				currentUser,
 				'Saved ' + approved.length + ' TXs as approved: ' + sum + ' CSPR',
@@ -433,6 +454,7 @@ export class TransferController {
 		}
 	}
 
+	// Helper method that sets a temporary status when batch calculating the updated eras.
 	private async _setStatus( value: number ): Promise<void> {
 		// Set lock status while processing
 		let status = await this.processingRepository.findOne( {
@@ -453,6 +475,7 @@ export class TransferController {
 		}
 	}
 
+	// Process a batch of eras to update them with the new unlock values.
 	private async _processBatch( filter: any , currentUser: UserProfile, saveType = 1 ): Promise<void> {
 		saveType = Number( saveType );
 
@@ -476,12 +499,15 @@ export class TransferController {
 			} );
 		}
 
+		// Report the progress, so it can be displayed visually in the admin panel.
 		const processTimer = setInterval( () => {
 			this._setStatus( 100 - Math.round( ( 100 / outboundTransfers.length ) * txs.length ) );
 		}, 500 );
 
+		// Launch it async to boost performance.
 		await async.parallelLimit( asyncQueue, 100 );
 
+		// Create an admin log record with the details of the action.
 		await this.adminLogService.write(
 			currentUser,
 			'Saved ' + outboundTransfers.length + ' TXs as ' + ( !!saveType ? 'not ' : '') + 'approved: ' + sum + ' CSPR',
@@ -492,6 +518,7 @@ export class TransferController {
 		await this._setStatus( 0 );
 	}
 
+	// Admin-only method to check the current progress of the updating.
 	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@authenticate( { strategy: 'jwt', options: { required: ['editor', 'administrator'] } } )
 	@get( '/transfers/status' )

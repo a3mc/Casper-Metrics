@@ -8,7 +8,10 @@ import { Block, Era } from '../models';
 import { BlockRepository, EraRepository } from '../repositories';
 
 // REST API controller class for operations with Blocks, served by the Loopback framework.
+// You can find more details about each endpoint in their descriptions and related schemas.
+// Some not self-explanatory parts are covered with the additional comments.
 export class BlockController {
+	// Requires Block and Era repositories to operate.
 	constructor(
 		@repository( BlockRepository )
 		public blocksRepository: BlockRepository,
@@ -40,6 +43,9 @@ export class BlockController {
 	): Promise<Block[]> {
 		let filter: Filter<Block>;
 		if ( customFilter ) {
+			// To prevent web interface from hanging when making huge calls from Swagger UI,
+			// There's a limitation applied to the production domain.
+			// Such large requests work fine when called without Swagger.
 			// @ts-ignore
 			const maxLimit = request?.headers?.origin && request.headers.origin.indexOf( 'caspermetrics.io' ) > -1 ? 100 : 1000;
 			if ( !customFilter.limit || customFilter.limit > maxLimit ) {
@@ -92,7 +98,6 @@ export class BlockController {
 						if ( !filter.fields || filter.fields.indexOf( 'circulatingSupply' ) > -1 ) {
 							block.circulatingSupply = era.circulatingSupply;
 						}
-
 					}
 				}
 
@@ -121,6 +126,7 @@ export class BlockController {
 		return processedBlocks;
 	}
 
+	// Return circulating supply by calling the related Era
 	@get( 'block/circulating' )
 	@response( 200, {
 		description: `Most recent Circulating Supply of the last completed Era when called without params.
@@ -155,6 +161,7 @@ export class BlockController {
 		return ( await this._getLastCirculatingSupply( block ) ).toString();
 	}
 
+	// Return total supply of the last completed era by block height or hash.
 	@get( 'block/total' )
 	@response( 200, {
 		description: `Most recent Total Supply of the last completed Era when called without params.
@@ -190,6 +197,7 @@ export class BlockController {
 		return lastRecord.totalSupply.toString();
 	}
 
+	// Helper method to get data from the corresponding Era.
 	private async _getLastCirculatingSupply( block: Partial<Block> ): Promise<bigint> {
 		let circulatingSupply = BigInt( 0 );
 		if ( block && block.eraId ) {

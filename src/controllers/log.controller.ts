@@ -5,6 +5,7 @@ import { AdminLog } from '../models';
 import { AdminLogRepository } from '../repositories';
 
 // Admin-only REST API controller class for operations with Admin logs, served by the Loopback framework.
+// Endpoints are protected with JWT strategy and not documented in the public OpenAPI spec.
 @oas.visibility( OperationVisibility.UNDOCUMENTED )
 @authenticate( { strategy: 'jwt' } )
 export class LogController {
@@ -14,6 +15,7 @@ export class LogController {
 	) {
 	}
 
+	// Returns the admin logs from the database.
 	@get( '/admin-logs' )
 	@response( 200, {
 		description: 'Array of AdminLog model instances',
@@ -30,6 +32,7 @@ export class LogController {
 		@param.query.number( 'perPage' ) perPage: number = 15,
 		@param.query.number( 'page' ) page: number = 1,
 	): Promise<any> {
+		// It allows pagination to view more data.
 		const logs = await this.adminLogRepository.find( {
 			order: ['id DESC'],
 			skip: ( page - 1 ) * perPage,
@@ -37,6 +40,7 @@ export class LogController {
 			fields: ['id', 'userName', 'userEmail', 'date', 'action'],
 		} );
 
+		// Return the total of items for corrent pagination and more info.
 		const count = await this.adminLogRepository.count();
 
 		return {
@@ -47,6 +51,7 @@ export class LogController {
 		};
 	}
 
+	// Get a specific log by id.
 	@get( '/admin-logs/{id}' )
 	@response( 200, {
 		description: 'Array of AdminLog model instances',

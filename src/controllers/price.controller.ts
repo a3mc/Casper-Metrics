@@ -15,6 +15,7 @@ export class PriceController {
 	) {
 	}
 
+	// Returns stored prices in the whole possible range. Undocumented as there's no need in wide public use.
 	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@get( '/prices' )
 	@response( 200, {
