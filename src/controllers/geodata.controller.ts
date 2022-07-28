@@ -3,6 +3,7 @@ import { get, getModelSchemaRef, param, response } from '@loopback/rest';
 import { Peers } from '../models';
 import { PeersRepository } from '../repositories';
 
+// REST API controller class for operations with Geodata, served by the Loopback framework.
 export class GeodataController {
 	constructor(
 		@repository( PeersRepository )
@@ -10,6 +11,7 @@ export class GeodataController {
 	) {
 	}
 
+	// Endpoint to return active Validators and their geo positions.
 	@get( '/validators' )
 	@response( 200, {
 		description: 'Active validators',

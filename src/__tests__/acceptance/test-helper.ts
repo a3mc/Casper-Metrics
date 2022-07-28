@@ -1,3 +1,6 @@
+// This a helper tool to run tests. It creates records in in-memory db instead of mysql.
+// But uses and runs through the whole code, like the database was permanent.
+
 import { Client, createRestAppClient, givenHttpServerConfig } from '@loopback/testlab';
 import * as crypto from 'crypto';
 import moment from 'moment';
@@ -9,13 +12,9 @@ import { testdb } from './metrics-db.datasource';
 
 const twofactor = require( 'node-2fa' );
 
+// Override the application setup to fit it for running tests suite.
 export async function setupApplication(): Promise<AppWithClient> {
 	const restConfig = givenHttpServerConfig( {
-		// Customize the server configuration here.
-		// Empty values (undefined, '') will be ignored by the helper.
-		//
-		// host: process.env.HOST,
-		// port: +process.env.PORT,
 	} );
 
 	const app = new CasperMetricsApplication( {
@@ -31,9 +30,12 @@ export async function setupApplication(): Promise<AppWithClient> {
 	return { app, client };
 }
 
+// Create in-memory mock values to run in the tests.
+// Data uses the same models and repositories, but not permanently stored.
 export async function givenTestDatabase() {
 	// Clean in-memory db and create mock data for tests.
 
+	// Populate blocks.
 	const blockRepository = new BlockRepository( testdb );
 	await blockRepository.deleteAll();
 	const blocks: Partial<Block>[] = [];
@@ -64,6 +66,7 @@ export async function givenTestDatabase() {
 	}
 	await blockRepository.createAll( blocks );
 
+	// Populate eras.
 	const eraRepository = new EraRepository( testdb );
 	await eraRepository.deleteAll();
 	const eras: Partial<Era>[] = [];
@@ -93,6 +96,7 @@ export async function givenTestDatabase() {
 	}
 	await eraRepository.createAll( eras );
 
+	// Populate prices.
 	const priceRepository = new PriceRepository( testdb );
 	await priceRepository.deleteAll();
 	const prices: Partial<Price>[] = [];
@@ -111,6 +115,7 @@ export async function givenTestDatabase() {
 	}
 	await priceRepository.createAll( prices );
 
+	// Populate users.
 	const userRepository = new UserRepository( testdb );
 	await userRepository.deleteAll();
 	await userRepository.createAll( [
@@ -187,6 +192,7 @@ export async function givenTestDatabase() {
 
 	] );
 
+	// Populate peers/geodata.
 	const peersRepository = new PeersRepository( testdb );
 	await peersRepository.deleteAll();
 	await peersRepository.createAll( [
@@ -232,6 +238,7 @@ export async function givenTestDatabase() {
 		},
 	] );
 
+	// Populate transfers.
 	const transferRepository = new TransferRepository( testdb );
 	await transferRepository.deleteAll();
 	const transfers: Partial<Transfer>[] = [];
@@ -257,6 +264,7 @@ export async function givenTestDatabase() {
 	logger.debug( 'Done creating test database records' );
 }
 
+// Interface of the app to interact with tests.
 export interface AppWithClient {
 	app: CasperMetricsApplication;
 	client: Client;

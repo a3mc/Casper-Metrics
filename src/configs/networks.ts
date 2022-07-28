@@ -1,3 +1,7 @@
+// This is a set of constants, representing the initial state of the network.
+// Even though the project is et up and developed to be used with Casper Mainnet only, it's
+// possible to use other networks, as long they have the same interface and the data structure.
+
 export const networks = {
 	net: 'mainnet',
 	mint_hash: 'hash-f8df015ba26860a7ec8cab4ee99f079325b0bbb9ef0e7810b63d85df39da95fe',

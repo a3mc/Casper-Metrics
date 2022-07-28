@@ -8,12 +8,14 @@ import { CrawlerService, GeodataService, PriceService, RedisService } from '../s
 
 dotenv.config();
 
+// Interface for the stake info.
 export interface BlockStakeInfo {
 	amount: bigint;
 	delegated: bigint;
 	undelegated: bigint;
 }
 
+// Crawler class that controls the workers and the process of collecting and storing the data from the blockchain.
 @lifeCycleObserver()
 export class CrawlerController {
 	private lastCalculated: number;
@@ -29,6 +31,7 @@ export class CrawlerController {
 	private meterInterval: NodeJS.Timeout;
 	private crawlerTimer: NodeJS.Timeout;
 
+	// Requires services and some repositories to ititialize.
 	constructor(
 		@service( CrawlerService ) private crawlerService: CrawlerService,
 		@service( RedisService ) private redisService: RedisService,
@@ -41,6 +44,7 @@ export class CrawlerController {
 		// Establish a connection with separate workers that help to crawl blocks as a separate process.
 		this.redisService.sub.client.on( 'message', ( channel: string, message: string ) => {
 
+			// Depending on the message perform actions, increase counters.
 			if ( channel === 'register' ) {
 				logger.debug( 'Registered worker %s', message );
 				this.workers.push( Number( message ) );
@@ -55,6 +59,7 @@ export class CrawlerController {
 				this.finishedWorkers++;
 				logger.debug( 'Worker finished: %d', this.finishedWorkers );
 
+				// At this moments, all blocks in a batch are crawled, so it can start the calculating phase.
 				if ( this.finishedWorkers >= this.workers.length ) {
 					clearInterval( this.meterInterval );
 					logger.info( 'Processed/Queued blocks: %d / %d', this.processedBlocks, this.queuedBlocks );
@@ -66,20 +71,26 @@ export class CrawlerController {
 				}
 			}
 		} );
+		// Subscribe to the channels to communicate with workers.
 		this.redisService.sub.client.subscribe( 'control' );
 		this.redisService.sub.client.subscribe( 'done' );
 		this.redisService.sub.client.subscribe( 'error' );
 		this.redisService.sub.client.subscribe( 'register' );
 	}
 
+	// By this cass beeing a lifeCycleObserver it starts this method automatically.
 	public async start(): Promise<void> {
+		// Set off the calculating flag.
 		await this.redisService.client.setAsync( 'calculating', 0 );
 
+		// Usually it takes no time for a few process to start, but depending on the resources,
+		// amount of worker processes, logging, etc, give some delay to ensure that everything started.
 		this.crawlerTimer = setTimeout( async () => {
 			await this.crawl();
 		}, 5000 );
 	}
 
+	// Reset the counters.
 	private reset(): void {
 		this.lastCalculated = 0;
 		this.queuedBlocks = 0;
@@ -89,6 +100,7 @@ export class CrawlerController {
 		this.finishedWorkers = 0;
 	}
 
+	// Start crawling only if there are any registered workeds and calculating phase is not in progress.
 	private async crawl() {
 		// We store a flag if crawling is in progress.
 		if (
@@ -99,7 +111,8 @@ export class CrawlerController {
 			return;
 		}
 
-
+		// When importing a database dump, it will not have appropriate records in the Redis db,
+		// so it will determine from where it can safely recrawl.
 		if ( ! Number( await this.redisService.client.getAsync( 'lastcalc' ) ) ) {
 			logger.info( 'No last calculated block height found in Redis, checking for Eras in database' );
 			const lastCompletedEra = await this.eraRepository.find( {

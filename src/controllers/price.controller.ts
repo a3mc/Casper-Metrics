@@ -7,6 +7,7 @@ import { PriceRepository } from '../repositories';
 
 const CoinGeckoClient = new CoinGecko();
 
+// REST API controller class for operations with Market data, served by the Loopback framework.
 export class PriceController {
 	constructor(
 		@repository( PriceRepository )
@@ -14,6 +15,7 @@ export class PriceController {
 	) {
 	}
 
+	// Returns stored prices in the whole possible range. Undocumented as there's no need in wide public use.
 	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@get( '/prices' )
 	@response( 200, {

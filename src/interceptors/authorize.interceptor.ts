@@ -13,10 +13,9 @@ import { HttpErrors } from '@loopback/rest';
 import { intersection } from 'lodash';
 import { MyUserProfile, RequiredPermissions } from '../types';
 
-/**
- * This class will be bound to the application as an `Interceptor` during
- * `boot`
- */
+// This class will be bound to the application as an `Interceptor` during boot.
+// It is based on the template example provided by the framework with minimum changes.
+// The purpose is to allow authenticated requests for the admin enpoints, ensuring, that they are protected.
 @globalInterceptor( '', { tags: { name: 'authorize' } } )
 export class AuthorizeInterceptor implements Provider<Interceptor> {
 	constructor(

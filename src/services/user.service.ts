@@ -10,7 +10,10 @@ import { BcryptHasher } from './hash.password';
 
 const twofactor = require( 'node-2fa' );
 
+// This service class performs checks and transforms of user credeintials.
+// It used only in for the admin endpoints.
 export class MyUserService implements UserService<User, Credentials> {
+	// To initialise, it injects password hasher and the user repository.
 	constructor(
 		@repository( UserRepository )
 		public userRepository: UserRepository,
@@ -19,6 +22,7 @@ export class MyUserService implements UserService<User, Credentials> {
 	) {
 	}
 
+	// Check that credentials exist in the database and user is active and valid. Return the user if correct.
 	async verifyCredentials( credentials: Credentials ): Promise<User> {
 		const foundUser = await this.userRepository.findOne( {
 			where: {
@@ -35,6 +39,7 @@ export class MyUserService implements UserService<User, Credentials> {
 			throw new HttpErrors.Unauthorized( 'Password is not valid' );
 		}
 
+		// Check password with comparing it to a stored hash.
 		const passwordMatched = await this.hasher.comparePassword( credentials.password, foundUser.password );
 		if ( !passwordMatched ) {
 			throw new HttpErrors.Unauthorized( 'Password is not valid' );
@@ -51,10 +56,12 @@ export class MyUserService implements UserService<User, Credentials> {
 		return foundUser;
 	}
 
+	// Check if the provided 2FA is valid, using twoFactor library.
 	verify2FASecret( secret: string, token: string ): boolean {
 		return !!twofactor.verifyToken( secret, token );
 	}
 
+	// Take and return only fields required for the user profile.
 	convertToUserProfile( user: User ): UserProfile {
 		return {
 			[securityId]: user.id!.toString(),
@@ -67,13 +74,15 @@ export class MyUserService implements UserService<User, Credentials> {
 		};
 	}
 
+	// Generate a new 2FA token for a given email.
 	generate2FASecret( email: string ): any {
 		const result = twofactor.generateSecret(
 			{
-				name: 'Casper Metrics',
+				name: 'Casper Metrics',  // Automatically add name
 				account: email,
 			},
 		);
+		// We don't need a QR at this step, so return the result without it.
 		delete result.qr;
 		return result;
 	}

@@ -1,3 +1,6 @@
+// A file to store tokens that used in the applications.
+// They are required for some ways of injection.
+
 import { TokenService, UserService } from '@loopback/authentication';
 import { BindingKey } from '@loopback/core';
 import dotenv from 'dotenv';
@@ -9,10 +12,12 @@ import { PasswordHasher } from './services/hash.password';
 dotenv.config();
 
 export namespace TokenServiceConstants {
+	// Jwt-tokens are used only for admin endpoints and have an expiration set to 24h.
 	export const TOKEN_SECRET_VALUE = process.env.JWT_SECRET;
 	export const TOKEN_EXPIRES_IN_VALUE = '24h';
 }
 export namespace TokenServiceBindings {
+	// Tokens that are need in order to JWT mechanism to work correctly.
 	export const TOKEN_SECRET = BindingKey.create<string>(
 		'authentication.jwt.secret',
 	);

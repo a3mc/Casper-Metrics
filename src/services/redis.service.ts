@@ -6,6 +6,7 @@ import { promisify } from 'util';
 
 dotenv.config();
 
+// This comtains a Redis client and a few methods wrapped for async usage.
 export interface RedisClientSet {
 	client: RedisClient;
 	getAsync: any;
@@ -15,15 +16,15 @@ export interface RedisClientSet {
 	deleteAsync: any;
 }
 
-
-// A helper service for using Redis
-// It wraps a few methods in Promises and creates connected clients.
+// A helper service for using Redis.
+// It wraps a few needed methods in Promises and creates connected clients.
 @injectable( { scope: BindingScope.TRANSIENT } )
 export class RedisService {
 	public client: RedisClientSet;
 	public pub: RedisClientSet;
 	public sub: RedisClientSet;
 
+	// Requires nothing to be passed for initialising.
 	constructor() {
 		this.client = this._createClient();
 		this.pub = this._createClient();

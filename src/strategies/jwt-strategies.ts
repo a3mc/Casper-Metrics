@@ -8,8 +8,10 @@ import { ParsedQs } from 'qs';
 import { TokenServiceBindings } from '../keys';
 import { JWTService } from '../services/jwt.service';
 
+// This class provides JWT auth strategy and is built upon the examples from the Loopback framework.
 export class JWTStrategy implements AuthenticationStrategy {
 	name: string = 'jwt';
+	//Inject a JWT service via a Token Binding that performs validations and other methods.
 	@inject( TokenServiceBindings.TOKEN_SERVICE )
 	public jwtService: JWTService;
 
@@ -17,10 +19,12 @@ export class JWTStrategy implements AuthenticationStrategy {
 		Promise<UserProfile | RedirectRoute | undefined> {
 
 		const token: string = this.extractCredentials( request );
+		// If the token was extracted, validate its validity then.
 		const userProfile = await this.jwtService.verifyToken( token );
 		return Promise.resolve( userProfile );
 	}
 
+	// Get the token if its format was correct.
 	extractCredentials( request: Request<ParamsDictionary, any, any, ParsedQs> ): string {
 		if ( !request.headers.authorization ) {
 			throw new HttpErrors.Unauthorized( 'Authorization is missing' );

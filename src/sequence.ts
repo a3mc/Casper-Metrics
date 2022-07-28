@@ -17,6 +17,11 @@ import {
 	SequenceHandler,
 } from '@loopback/rest';
 
+// It's a file used by Loopback to serve API correctly.
+// It was modified from the default template to work correcly in different scenarios that API has.
+// It can for a JWT token and a set of rules if the enpoint asks for that.
+// And it also allows preflight requests not to be blocked.
+// Pleaser refer to the Loobback's documentation for more details on the middleware and how it works.
 export class MySequence implements SequenceHandler {
 
 	constructor(

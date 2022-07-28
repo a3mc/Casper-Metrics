@@ -16,12 +16,15 @@ import { JWTStrategy } from './strategies/jwt-strategies';
 
 export { ApplicationConfig };
 
+// That's the main application class, that is started from index.ts
+// It's built upon a regular boilerplate used in the framework but with some modifications, mentioned in the comments below.
 export class CasperMetricsApplication extends BootMixin(
 	ServiceMixin( RepositoryMixin( RestApplication ) ),
 ) {
 	constructor( options: ApplicationConfig = {} ) {
 		super( options );
 
+		// We use JWT-related middleware for certain enpoints and register the auth strategy here.
 		this.setupBinding();
 		this.addSecuritySpec();
 		this.component( AuthenticationComponent );
@@ -30,6 +33,7 @@ export class CasperMetricsApplication extends BootMixin(
 
 		this.projectRoot = __dirname;
 
+		// As we extract and save the OpenApi spec on build, we serve it a separate static file.
 		this.static( '/explorer/openapi.json', path.join( __dirname, 'openapi.json' ) );
 
 		this.bootOptions = {
@@ -42,6 +46,7 @@ export class CasperMetricsApplication extends BootMixin(
 	}
 
 	setupBinding(): void {
+		// Set up bindings that used within the app.
 		if ( !TokenServiceConstants.TOKEN_SECRET_VALUE ) {
 			throw new Error( 'No JWT token secret set.' );
 		}
@@ -55,6 +60,7 @@ export class CasperMetricsApplication extends BootMixin(
 		this.bind( AdminLogServiceBindings.ADMINLOG_SERVICE ).toClass( AdminLogService );
 	}
 
+	// That prepares a correct format and adds some meta data to the generated spec file.
 	addSecuritySpec(): void {
 		this.api( {
 			openapi: '3.0.0',

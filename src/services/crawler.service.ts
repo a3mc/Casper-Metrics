@@ -16,6 +16,7 @@ import { RedisService } from './redis.service';
 
 dotenv.config();
 
+// Represents an interface of the Casper client, wrapped with a few extra properties, for better reusing and control.
 export interface CasperServiceSet {
 	lastBlock?: number;
 	node: CasperServiceByJsonRPC;
@@ -23,16 +24,24 @@ export interface CasperServiceSet {
 	lastQueried: number;
 }
 
+// This service class performs operations of crawling blocks, get deploy infos, and creating Eras, as well
+// as some calculating options.
 @injectable( { scope: BindingScope.TRANSIENT } )
 export class CrawlerService {
 	private _casperServices: CasperServiceSet[] = [];
 	private _activeRpcNodes: string[] = [];
+	// Minimum RPC nodes that report the same high block Height.
 	private _minRpcNodes = Number( process.env.MIN_RPC_NODES || 10 );
+	// For a long crawling it determines how many blocks to process at once when creating Eras.
 	private _calcBatchSize = Number( process.env.CALC_BATCH_SIZE || 25000 );
+	// After pinging an RPC node, remove it from the active list if it didn't respond in a given time.
 	private _maxRpcTestTimeout = Number( process.env.MAX_RPC_TEST_TIMEOUT || 1500 ); // Don't use nodes that respond slower
+	// Don't wait longer than that for any query.
 	private _queryTimeout = Number( process.env.QUERY_TIMEOUT || 60000 ); // Throw an error if a query takes longer
+	// Allow to launch multiple async tasks when querying for transfers information.
 	private _transfersParallelLimit = Number( process.env.TRANSFERS_PARALLEL_LIMIT || 10 );
 
+	// It depends on the repositories to get and save the data and Redis and Cirulating Service.
 	constructor(
 		@repository( EraRepository ) public eraRepository: EraRepository,
 		@repository( BlockRepository ) public blocksRepository: BlockRepository,
@@ -44,29 +53,32 @@ export class CrawlerService {
 	) {
 	}
 
-	// We get only RPC nodes that return the same last block height.
+	// Get only RPC nodes that return the same last block height and return the highest block if we get enough nodes.
 	public async getLastBlockHeight(): Promise<number> {
 		await this._resetNetworks();
 		logger.debug( 'Trying to init %d nodes', this._activeRpcNodes.length );
 
+		// Push the list of tasks to check nodes to a queue.
 		const asyncQueue = [];
 		for ( const ip of this._activeRpcNodes ) {
 			asyncQueue.push( async () => {
 				await this._testRpcNode( ip );
 			} );
 		}
-
+		// Launch nodes liveliness test in parallel,
 		await async.parallelLimit( asyncQueue, 100 );
 
+		// Find the most high block height.
 		const maxLastBlock = Math.max.apply( Math, this._casperServices.map( ( node: CasperServiceSet ) => {
 			return node.lastBlock ?? 0;
 		} ) );
 
-		// All nodes with the same lastBlock
+		// All nodes with the same lastBlock, remove the rest.
 		this._casperServices = this._casperServices.filter(
 			node => node.lastBlock === maxLastBlock,
 		);
 
+		// If just few nodes left after filtering by same height, schedule a next try, in a loop.
 		if ( this._casperServices.length < this._minRpcNodes ) {
 			logger.debug( 'Not enough active RPC nodes with the same last block. Re-trying in 5 seconds.' );
 			await this._sleep( 5000 );
@@ -93,13 +105,19 @@ export class CrawlerService {
 		}
 		await this.transferRepository.deleteAll( { blockHeight: blockHeight } );
 
+		// Get a new service - reuse active connections, by going through them round-robin.
 		const service = await this._getCasperService();
+		// Get block info with a safe timeout wrapper. IF RPC takes too much time to respond, thrown an error.
 		const blockInfo: any = await this._withTimeout( service.node, 'getBlockInfoByHeight', [blockHeight] )
 			.catch( async () => {
 				await this._banService( service );
+				// As usually the nature of such errors doesn't matter for us, and usually it's a network error.
+				// Just thron an error. No need to write down extra details to the logs - we'll return to that block from another
+				// node in next loop.
 				throw new Error();
 			} );
 
+		// Get some information provided in the block info.
 		const stateRootHash: string = blockInfo.block.header.state_root_hash;
 		const totalSupply: bigint = await this._getTotalSupply( stateRootHash );
 
@@ -113,16 +131,19 @@ export class CrawlerService {
 
 		const eraId: number = blockInfo.block.header.era_id;
 
+		// Get the staked info if there are deploy hashes listed in the info.
 		if ( blockInfo.block.body.deploy_hashes?.length ) {
 			deploys = blockInfo.block.body.deploy_hashes.length;
 			staked = await this._processDeploys( blockInfo.block.body.deploy_hashes );
 		}
 
+		// Get transfers, if transfer hashes are listed in the block info.
 		if ( blockInfo.block.body.transfer_hashes?.length ) {
 			transfers = blockInfo.block.body.transfer_hashes.length;
 			await this._processTransfers( blockInfo.block.body.transfer_hashes, blockHeight, eraId );
 		}
 
+		// Set some initial values for a new block.
 		let isSwitchBlock = false;
 		let nextEraValidatorsWeights = BigInt( 0 );
 		let validatorsSum = BigInt( 0 );
@@ -130,8 +151,10 @@ export class CrawlerService {
 		let delegatorsSum = BigInt( 0 );
 		let delegatorsCount = 0;
 
+		// If this block is a Switch
 		if ( blockInfo.block.header.era_end ) {
 			isSwitchBlock = true;
+			// Get the wheigts
 			nextEraValidatorsWeights = this._denominate( await this._getValidatorsWeights(
 				blockInfo.block.header.era_end.next_era_validator_weights,
 			) );
@@ -143,6 +166,8 @@ export class CrawlerService {
 			);
 			const client = new Client( new RequestManager( [transport] ) );
 
+			// As "chain_get_era_info_by_switch_block" wasn't available in SDK, make a pure http call.
+			// Use a safe-timeout wrapper to fail if it doesn't respond in time.
 			const result = await this._withTimeout( client, 'request', [
 				{
 					method: 'chain_get_era_info_by_switch_block',
@@ -157,6 +182,7 @@ export class CrawlerService {
 				throw new Error();
 			} );
 
+			// Get allocations and process each of them, to calculate the sums.
 			const allocations = result.era_summary.stored_value.EraInfo.seigniorage_allocations;
 
 			allocations.forEach( ( allocation: any ) => {
@@ -171,9 +197,11 @@ export class CrawlerService {
 			} );
 		}
 
+		// Just to be sure we are not creating the same block twice, remove it, if it exists.
 		if ( await this.blocksRepository.exists( blockHeight ) ) {
 			await this.blocksRepository.deleteById( blockHeight );
 		}
+		// Create the block with calculated values.
 		await this.blocksRepository.create( {
 			blockHeight: blockHeight,
 			blockHash: blockInfo.block.hash,
@@ -196,20 +224,23 @@ export class CrawlerService {
 			transfersCount: transfers,
 		} );
 
+		// In case of success, write it to Redis db, so we don't touch this block again in the next loop.
 		await this.redisService.client.setAsync( 'b' + String( blockHeight ), 1 );
 	}
 
 	// Once we have all blocks in a batch, we can create eras.
 	public async calcBlocksAndEras(): Promise<void> {
-
+		// Set a flag that we started to create eras. No need to crawl new blocks at the same time.
 		await this.redisService.client.setAsync( 'calculating', 1 );
 
+		// Get the last block for which the era was created, to start from the next one.
 		const lastCalculated: number = Number( await this.redisService.client.getAsync( 'lastcalc' ) );
 		let blocks: Block[] = await this.blocksRepository.find( {
 			where: { blockHeight: { gt: lastCalculated || -1 } },
 		} );
 		const totalBlockSize = blocks.length;
 
+		// Limit the amount of consequent blocks, to prevent high load on the resources.
 		if ( totalBlockSize > this._calcBatchSize ) {
 			logger.debug(
 				'Calculation started. Taking %d of %d blocks total',
@@ -223,11 +254,14 @@ export class CrawlerService {
 
 		let blockCount = 0;
 
+		// Loop through the blocks in the batch.
 		for ( const block of blocks ) {
+			// Update transfers info for each block.
 			await this._updateBlockTransfers( block );
 
 			let prevBlock: Block | null = null;
 
+			// Find a previous block if it exists.
 			if ( block.blockHeight > 0 ) {
 				if ( blockCount > 0 ) {
 					prevBlock = blocks[blockCount - 1];
@@ -235,16 +269,20 @@ export class CrawlerService {
 					prevBlock = await this.blocksRepository.findById( block.blockHeight - 1 );
 				}
 			} else {
+				// Prevent creating a duplicate era.
 				if ( await this.eraRepository.exists( 0 ) ) {
 					await this.eraRepository.deleteById( 0 );
 				}
+				// If previous block doesn't exist, create a Genesis era.
 				await this._createGenesisEra( block );
 			}
 
+			// If previous block was a Switch, create new era, by passing both blocks.
 			if ( prevBlock && prevBlock.switch ) {
 				await this._createNewEra( prevBlock, block );
 
 				const completedEra: Era = await this.eraRepository.findById( prevBlock.eraId );
+				// Find all blocks of the new era.
 				let eraBlocks: Block[] = blocks.filter( eraBlock => eraBlock.eraId === prevBlock?.eraId );
 				if ( !eraBlocks.some( eraBlock => eraBlock.blockHeight === completedEra.startBlock ) ) {
 					eraBlocks = await this.blocksRepository.find( {
@@ -253,17 +291,21 @@ export class CrawlerService {
 						},
 					} );
 				}
+				// Update completed era by passing switch block and a collection of era's blocks.
 				await this._updateCompletedEra( prevBlock, eraBlocks );
 			}
-
+			// Count the blocks that were processed in the loop.
 			blockCount++;
 		}
 
+		// Increase the record of the last processed block, so we can start later after it.
 		await this.redisService.client.setAsync( 'lastcalc', blocks[blocks.length - 1].blockHeight );
 
+		// Continue if more blocks left.
 		if ( totalBlockSize > this._calcBatchSize ) {
 			await this.calcBlocksAndEras();
 		} else {
+			// Or switch of the calculating flag and return to the main app loop.
 			await this.redisService.client.setAsync( 'calculating', 0 );
 			logger.debug( 'Calculation finished.' );
 		}
@@ -294,11 +336,13 @@ export class CrawlerService {
 			},
 		} );
 
+		// Loop through all transfers of the block.
 		for ( const transfer of blockTransfers ) {
 			let depth = 0;
 			if ( networks.locked_wallets.includes( transfer.from.toUpperCase() ) ) {
 				depth = 1;
 			} else {
+				// Try to find how far the transfer was from the Genesis vaults, by calculating the depth.
 				const foundTransfer: Transfer | null | void = await this.transferRepository.findOne( {
 					where: {
 						toHash: transfer.fromHash,
@@ -325,7 +369,7 @@ export class CrawlerService {
 			}
 			if ( depth ) {
 				transfer.depth = depth;
-				/* Try to find find hex address for "to" account */
+				// Try to find  hex address for "to" account by checking known accounts.
 				if ( !transfer.to ) {
 					const knownAccount = await this.knownAccountRepository.findOne( {
 						where: {
@@ -339,7 +383,7 @@ export class CrawlerService {
 						transfer.to = knownAccount.hex;
 					}
 				}
-
+				// Update the transfers table.
 				await this.transferRepository.updateById( transfer.id, transfer );
 			}
 		}
@@ -357,8 +401,10 @@ export class CrawlerService {
 
 		let blockInfo;
 		try {
+			// As a test, make a simpe query to see if it respons with the last block Height
 			blockInfo = await this._getLastBlockWithTimeout( casperServiceSet.node );
 		} catch ( error ) {
+			// Don't use it in this loop, if not.
 			logger.debug( 'Failed to init Casper Node %s', ip );
 			return;
 		}
@@ -368,6 +414,7 @@ export class CrawlerService {
 			logger.debug( 'Node didn\'t return lastBlock %s', ip );
 			return;
 		}
+		// Add to the collection of RPC services that can be used.
 		this._casperServices.push( casperServiceSet );
 	}
 
@@ -401,6 +448,7 @@ export class CrawlerService {
 				fields: ['ip'],
 			} );
 
+			// We need only IPs to initialise the nodes.
 			if ( rpcs && rpcs.length ) {
 				return rpcs.map( item => item.ip );
 			} else {
@@ -418,6 +466,9 @@ export class CrawlerService {
 	// Mark RPC service as having issues
 	private async _banService( service: CasperServiceSet ): Promise<void> {
 		// TODO - rate nodes performance, to exclude slow nodes in next batches
+		// That might be node needed for now, but good to have this method for future, if want to make
+		// some further modifications in crawling, so we can catch "bad" nodes here.
+		// It can also be used just for debugging purposes. No actual banning happens here.
 	}
 
 	// Remove RPC service from the list
@@ -437,6 +488,7 @@ export class CrawlerService {
 			rpcs.push( service );
 		}
 
+		// Try to first get the node from the list that hasn't been called for a while.
 		rpcs.sort( ( a: CasperServiceSet, b: CasperServiceSet ) => {
 			return ( ( a.lastQueried > b.lastQueried ) ? 1 : ( ( a.lastQueried < b.lastQueried ) ? -1 : 0 ) );
 		} );
@@ -470,10 +522,10 @@ export class CrawlerService {
 		}
 	}
 
-	// prevBlock is a Switch block
+	// Create new Era: prevBlock is a Switch block, and the block is the next block.
 	private async _createNewEra( prevBlock: Block, block: Block ): Promise<void> {
 		if ( !await this.eraRepository.exists( block.eraId ) ) {
-
+			// Create an Era. It will be popuplated on the next step, when gets completed.
 			await this.eraRepository.create( {
 				id: block.eraId,
 				circulatingSupply: BigInt( 0 ),
@@ -501,7 +553,7 @@ export class CrawlerService {
 		}
 	}
 
-	// Once we have switch block we can update completed Era with the details
+	// Once we have switch block we can update completed Era with the details.
 	private async _updateCompletedEra( switchBlock: Block, eraBlocks: Block[] ): Promise<void> {
 		let stakedInfo: BlockStakeInfo = {
 			amount: BigInt( 0 ),
@@ -515,6 +567,7 @@ export class CrawlerService {
 		let rewards = BigInt( 0 );
 		let delegatorsRewards = BigInt( 0 );
 		let validatorsRewards = BigInt( 0 );
+		// Loop through all the blocks of the completed era to perform calculations.
 		for ( const eraBlock of eraBlocks ) {
 			stakedInfo.delegated += BigInt( eraBlock.stakedThisBlock );
 			stakedInfo.undelegated += BigInt( eraBlock.undelegatedThisBlock );
@@ -526,6 +579,7 @@ export class CrawlerService {
 			validatorsCount += eraBlock.validatorsCount;
 			delegatorsCount += eraBlock.delegatorsCount;
 		}
+		// Update the era with more info.
 		await this.eraRepository.updateById(
 			switchBlock.eraId,
 			{
@@ -548,6 +602,7 @@ export class CrawlerService {
 				transfersCount: transfers,
 			},
 		);
+		// As there were no transfers before era 480, it can just save some time when crawling from genesis.
 		if ( switchBlock.eraId > 480 ) {
 			await this.circulatingService.updateEraCirculatingSupply(
 				await this.eraRepository.findById( switchBlock.eraId ),
@@ -596,6 +651,7 @@ export class CrawlerService {
 		return BigInt( blockState.CLValue.data );
 	}
 
+	// Sum the validators weights.
 	private async _getValidatorsWeights( weights: any ): Promise<bigint> {
 		let validatorWeights = BigInt( 0 );
 		weights.forEach( ( item: any ) => {
@@ -607,6 +663,7 @@ export class CrawlerService {
 	// We try to find HEX account values here when possible.
 	private async _processTransfers( transferHashes: string[], blockHeight: number, eraId: number ): Promise<void> {
 
+		// Use a queue to put parallel tasks in it, that helps to boost performance.
 		const asyncQueue = [];
 		for ( const hash of transferHashes ) {
 			asyncQueue.push( async () => {
@@ -617,9 +674,12 @@ export class CrawlerService {
 						throw new Error();
 					} );
 
+
+				// Parse the returned results to extract the data we look for.
 				for ( const executionResult of deployResult.execution_results ) {
 					if ( executionResult?.result?.Success?.effect ) {
 						for ( const transform of executionResult.result.Success.effect.transforms ) {
+							// Just to make sure we don't get into a bug with different formats, use lower case.
 							const transformKey = transform.key.toLowerCase();
 							const successTransfers = executionResult.result.Success.transfers.map(
 								( item: string ) => item.toLowerCase(),
@@ -630,6 +690,7 @@ export class CrawlerService {
 							) {
 								const transfer = transform.transform.WriteTransfer;
 								let knownHex = '';
+								// Check if we have the hash in the known accounts.
 								let knownAccount = await this.knownAccountRepository.findOne( {
 									where: {
 										hash: transfer.to,
@@ -639,6 +700,7 @@ export class CrawlerService {
 									},
 								} ).catch();
 
+								// Then we can save the hex, along with the account hash.
 								if ( knownAccount ) {
 									knownHex = knownAccount.hex || '';
 								}
@@ -663,6 +725,7 @@ export class CrawlerService {
 									}
 								}
 
+								// Insert a records into the transfers table.
 								await this.transferRepository.create( {
 									timestamp: deployResult.deploy.header.timestamp,
 									blockHeight: blockHeight,
@@ -685,6 +748,7 @@ export class CrawlerService {
 			} );
 		}
 
+		// Launch the queue with the tasks in paralel.
 		await async.parallelLimit( asyncQueue, this._transfersParallelLimit );
 	}
 
@@ -706,6 +770,7 @@ export class CrawlerService {
 						throw new Error();
 					} );
 
+				// Parse the result of each deploy hash.
 				for ( const executionResult of deployResult.execution_results ) {
 					if (
 						executionResult?.result?.Success &&
@@ -718,6 +783,9 @@ export class CrawlerService {
 						let isAddBid = 0;
 						let isWithdrawBid = 0;
 						let currentAmount = BigInt( 0 );
+
+						// Determine the type of delegation operation it was and update the values accordingly.
+						// These combinations are unique for each type.
 
 						args.forEach(
 							( arg: any ) => {
@@ -754,6 +822,8 @@ export class CrawlerService {
 							}
 						}
 
+						// Calculate whether the amount was delegated or unstaked
+
 						if ( isAddBid === 3 || isDelegated ) {
 							staked.amount += currentAmount;
 							staked.delegated += currentAmount;
@@ -768,11 +838,13 @@ export class CrawlerService {
 			} );
 		}
 
+		// Launch in parallel.
 		await async.parallelLimit( asyncQueue, this._transfersParallelLimit );
-
+		// Return the staked object that represents the sums that were staked/unbonded.
 		return staked;
 	}
 
+	// Helper method to convert from motes.
 	private _denominate( amount: bigint ): bigint {
 		return amount / BigInt( 1000000000 );
 	}

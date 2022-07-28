@@ -1,3 +1,6 @@
+// This files contains typical error messages and status codes to be invoked from the app.
+// It exports typical classes, extending the generic Error class.
+
 export class NotFound extends Error {
 	statusCode: number;
 

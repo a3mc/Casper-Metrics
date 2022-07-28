@@ -16,8 +16,10 @@ import { BcryptHasher } from '../services/hash.password';
 import { JWTService } from '../services/jwt.service';
 import { MyUserService } from '../services/user.service';
 
+// Admin-only REST API controller class for operations with Users, served by the Loopback framework.
 @oas.visibility( OperationVisibility.UNDOCUMENTED )
 export class UserController {
+	// Requires a user repository and helper services for encryption and validations.
 	constructor(
 		@repository( UserRepository )
 		public userRepository: UserRepository,
@@ -32,6 +34,7 @@ export class UserController {
 	) {
 	}
 
+	// Endpoint for admin to invite another user to the admin system.
 	@authenticate( { strategy: 'jwt', options: { required: ['administrator'] } } )
 	@post( '/invite' )
 	async invite( @requestBody() user: Partial<User> ): Promise<void> {
@@ -45,6 +48,8 @@ export class UserController {
 
 		const token = crypto.randomBytes( 48 ).toString( 'hex' );
 
+		// Create a not-activated user with a "viewer" status.
+
 		await this.userRepository.create( {
 			email: user.email,
 			firstName: user.firstName,
@@ -56,13 +61,16 @@ export class UserController {
 			role: 'viewer',
 		} );
 
+		// Send an email, but don't wait for result here, as it may take some time to be processed.
 		this._sendActivationLink( user, token );
 	}
 
+	// Public endpoint for user with invitation link to join the admin panel.
 	@get( '/activate' )
 	async activate(
 		@param.query.string( 'token' ) token: string,
 	): Promise<any> {
+		// Verify the provided details and if such user with the token exists and still not actvated.
 		const user = await this.userRepository.findOne( {
 			where: {
 				active: false,
@@ -85,11 +93,12 @@ export class UserController {
 		};
 	}
 
+	// And endpoint to log in.
 	@post( '/login' )
 	async login(
 		@requestBody() credentials: any,
 	): Promise<any> {
-		// First admin login.
+		// First time admin login.
 		if (
 			process.env.ADMIN_EMAIL && process.env.ADMIN_EMAIL === credentials.email &&
 			process.env.ADMIN_FIRST_NAME &&
@@ -119,6 +128,7 @@ export class UserController {
 		return userProfile;
 	}
 
+	// Endpoint to receive a user profile when sending a JWT token.
 	@authenticate( { strategy: 'jwt' } )
 	@get( '/me' )
 	async me(
@@ -139,6 +149,7 @@ export class UserController {
 		return Promise.resolve( dbUser );
 	}
 
+	// Endpoint to generate 2FA secret for a given email.
 	@get( '/generate2fa' )
 	async generate2fa(
 		@param.query.string( 'email' ) email: string,
@@ -146,6 +157,7 @@ export class UserController {
 		return this.userService.generate2FASecret( email );
 	}
 
+	// Endpoint to validate the validity of 2FA code.
 	@get( '/verify2fa' )
 	async verify2fa(
 		@param.query.string( 'secret' ) secret: string,
@@ -154,6 +166,7 @@ export class UserController {
 		return this.userService.verify2FASecret( secret, token );
 	}
 
+	// Admin-only - return the list of users with their details.
 	@authenticate( { strategy: 'jwt', options: { required: ['administrator'] } } )
 	@get( '/users' )
 	@response( 200 )
@@ -163,6 +176,7 @@ export class UserController {
 		} );
 	}
 
+	// ADmin enpoint to change user's role.
 	@authenticate( { strategy: 'jwt', options: { required: ['administrator'] } } )
 	@post( '/users/{id}/role/{role}' )
 	@response( 204 )
@@ -198,6 +212,7 @@ export class UserController {
 		await this.userRepository.updateById( id, user );
 	}
 
+	// Admin enpoint to reset user's details.
 	@authenticate( { strategy: 'jwt', options: { required: ['administrator'] } } )
 	@post( '/users/{id}/reset' )
 	@response( 204 )
@@ -231,6 +246,7 @@ export class UserController {
 		this._sendActivationLink( user, token );
 	}
 
+	// Admin endpoint to deactivate the user permanently.
 	@authenticate( { strategy: 'jwt', options: { required: ['administrator'] } } )
 	@post( '/users/{id}/deactivate' )
 	@response( 204 )
@@ -255,6 +271,7 @@ export class UserController {
 		} );
 	}
 
+	// Activating endpoint. Accepts a user with a correct invite token and other details.
 	@post( '/activate' )
 	@response( 200 )
 	async activateUser(
@@ -302,6 +319,7 @@ export class UserController {
 		} );
 	}
 
+	// Helper method to send an email with activation link
 	private async _sendActivationLink( user: Partial<User>, token: string ): Promise<void> {
 		const linkUrl: string = String( process.env.ADMIN_PANEL_URL ) + '/?activate=' + token;
 		const mailSubject = 'Invitation for your Casper Metrics account';

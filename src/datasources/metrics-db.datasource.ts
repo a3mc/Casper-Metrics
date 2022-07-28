@@ -4,8 +4,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-console.log( process.env.DATABASE );
-
+// Database connection configuration. Most of the values are take from the .env file.
 const config = {
 	name: 'metricsDB',
 	connector: 'mysql',
