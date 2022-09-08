@@ -228,7 +228,7 @@ export class CrawlerController {
 		for ( let blockHeight = this.lastCalculated + 1; blockHeight <= this.lastBlockHeight; blockHeight++ ) {
 			/* Add unprocessed blocks to the queue */
 			if (
-				!await this.redisService.client.getAsync( 'dss' + String( blockHeight ) ) &&
+				!await this.redisService.client.getAsync( 'del' + String( blockHeight ) ) &&
 				this.queuedBlocks < this.blocksBatchSize
 			) {
 				this.queuedBlocks++;

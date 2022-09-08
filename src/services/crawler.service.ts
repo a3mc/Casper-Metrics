@@ -305,7 +305,7 @@ export class CrawlerService {
 
 	// Crawl for a block and its deploys.
 	public async createBlock( blockHeight: number ): Promise<void> {
-		if ( await this.redisService.client.getAsync( 'dss' + String( blockHeight ) ) ) {
+		if ( await this.redisService.client.getAsync( 'del' + String( blockHeight ) ) ) {
 			throw new Error( 'Block ' + blockHeight + ' already crawled' );
 		}
 		//await this.transferRepository.deleteAll( { blockHeight: blockHeight } );
@@ -418,7 +418,7 @@ export class CrawlerService {
 
 
 		// In case of success, write it to Redis db, so we don't touch this block again in the next loop.
-		await this.redisService.client.setAsync( 'dss' + String( blockHeight ), 1 );
+		await this.redisService.client.setAsync( 'del' + String( blockHeight ), 1 );
 	}
 
 	// Once we have all blocks in a batch, we can create eras.
