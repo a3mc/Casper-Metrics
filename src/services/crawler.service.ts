@@ -925,9 +925,9 @@ export class CrawlerService {
 									depth: 0,
 									eraId: eraId,
 									deployHash: transfer.deploy_hash,
-									from: deployResult.deploy.header.account,
-									fromHash: transfer.from,
-									toHash: transfer.to,
+									from: deployResult.deploy.header.account || transfer.source,
+									fromHash: transfer.from || transfer.source,
+									toHash: transfer.to || transfer.target,
 									to: knownHex,
 									amount: transfer.amount,
 									denomAmount: Math.round(
