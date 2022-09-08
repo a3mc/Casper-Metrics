@@ -4,9 +4,9 @@ import dotenv from 'dotenv';
 import { MetricsDbDataSource } from '../datasources';
 import { logger } from '../logger';
 import {
-	BlockRepository,
+	BlockRepository, DelegatorsRepository,
 	EraRepository,
-	KnownAccountRepository, PeersRepository, ProcessingRepository,
+	KnownAccountRepository, PeersRepository, PriceRepository, ProcessingRepository,
 	TransferRepository,
 	ValidatorsUnlockRepository,
 } from '../repositories';
@@ -130,6 +130,8 @@ new CrawlerWorker(
 		new TransferRepository( dataSource ),
 		new KnownAccountRepository( dataSource ),
 		new PeersRepository( dataSource ),
+		new DelegatorsRepository( dataSource ),
+		new PriceRepository( dataSource ),
 		new RedisService(),
 		new CirculatingService(
 			new EraRepository( dataSource ),

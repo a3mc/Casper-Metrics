@@ -3,6 +3,7 @@ import { repository } from '@loopback/repository';
 import { Client, HTTPTransport, RequestManager } from '@open-rpc/client-js';
 import * as async from 'async';
 import Timeout from 'await-timeout';
+import axios from 'axios';
 import { CasperServiceByJsonRPC } from 'casper-js-sdk';
 import dotenv from 'dotenv';
 import moment from 'moment';
@@ -10,7 +11,14 @@ import { networks } from '../configs/networks';
 import { BlockStakeInfo } from '../controllers';
 import { logger } from '../logger';
 import { Block, Era, Transfer } from '../models';
-import { BlockRepository, EraRepository, KnownAccountRepository, PeersRepository, TransferRepository } from '../repositories';
+import {
+	BlockRepository,
+	DelegatorsRepository,
+	EraRepository,
+	KnownAccountRepository,
+	PeersRepository, PriceRepository,
+	TransferRepository,
+} from '../repositories';
 import { CirculatingService } from './circulating.service';
 import { RedisService } from './redis.service';
 
@@ -41,13 +49,15 @@ export class CrawlerService {
 	// Allow to launch multiple async tasks when querying for transfers information.
 	private _transfersParallelLimit = Number( process.env.TRANSFERS_PARALLEL_LIMIT || 10 );
 
-	// It depends on the repositories to get and save the data and Redis and Cirulating Service.
+	// It depends on the repositories to get and save the data and Redis and Circulating Service.
 	constructor(
 		@repository( EraRepository ) public eraRepository: EraRepository,
 		@repository( BlockRepository ) public blocksRepository: BlockRepository,
 		@repository( TransferRepository ) public transferRepository: TransferRepository,
 		@repository( KnownAccountRepository ) public knownAccountRepository: KnownAccountRepository,
 		@repository( PeersRepository ) public peersRepository: PeersRepository,
+		@repository( DelegatorsRepository ) public delegatorsRepository: DelegatorsRepository,
+		@repository( PriceRepository ) public priceRepository: PriceRepository,
 		@service( RedisService ) public redisService: RedisService,
 		@service( CirculatingService ) public circulatingService: CirculatingService,
 	) {
@@ -99,7 +109,7 @@ export class CrawlerService {
 	}
 
 	// Crawl for a block and its deploys.
-	public async createBlock( blockHeight: number ): Promise<void> {
+	public async _createBlock( blockHeight: number ): Promise<void> {
 		if ( await this.redisService.client.getAsync( 'b' + String( blockHeight ) ) ) {
 			throw new Error( 'Block ' + blockHeight + ' already crawled' );
 		}
@@ -154,7 +164,7 @@ export class CrawlerService {
 		// If this block is a Switch
 		if ( blockInfo.block.header.era_end ) {
 			isSwitchBlock = true;
-			// Get the wheigts
+			// Get the weights
 			nextEraValidatorsWeights = this._denominate( await this._getValidatorsWeights(
 				blockInfo.block.header.era_end.next_era_validator_weights,
 			) );
@@ -185,7 +195,9 @@ export class CrawlerService {
 			// Get allocations and process each of them, to calculate the sums.
 			const allocations = result.era_summary.stored_value.EraInfo.seigniorage_allocations;
 
-			allocations.forEach( ( allocation: any ) => {
+			const indexedValidators = process.env.INDEXED_VALIDATORS?.split( ',' ) || [];
+
+			for ( const allocation of allocations ) {
 				if ( allocation.Validator ) {
 					validatorsCount++;
 					validatorsSum += BigInt( allocation.Validator.amount );
@@ -193,8 +205,71 @@ export class CrawlerService {
 				if ( allocation.Delegator ) {
 					delegatorsCount++;
 					delegatorsSum += BigInt( allocation.Delegator.amount );
+
+					if (
+						indexedValidators.includes( allocation.Delegator.validator_public_key ) &&
+						( await this.delegatorsRepository.find( {
+							where: {
+								eraId: eraId,
+								validator: allocation.Delegator.validator_public_key,
+								delegator: allocation.Delegator.delegator_public_key,
+							},
+						}) ).length === 0
+					) {
+						let price = 0;
+						const foundPrice = await this.priceRepository.find(
+							{
+								where: {
+									and: [
+										{ date: { gte: moment( blockInfo.block.header.timestamp ).add( -30, 'minutes' ).format() } },
+										{ date: { lt: moment( blockInfo.block.header.timestamp ).add( 30, 'minutes' ).format() } },
+									]
+								},
+								limit: 1,
+								fields: ['close'],
+							}
+						);
+
+						if ( foundPrice && foundPrice.length ) {
+							price = foundPrice[0].close;
+						} else if (
+							moment( blockInfo.block.header.timestamp ).isSameOrBefore( moment().add( 2, 'hours') ) &&
+							moment( blockInfo.block.header.timestamp ).isSameOrAfter( moment().add( -2, 'hours') )
+						) {
+							// A cancel token is used with timeout to avoid a well-know problem with axious when it may hang on network errors.
+							const source = axios.CancelToken.source();
+							const timeout = setTimeout(() => {
+								source.cancel();
+							}, 60000 );
+
+							const result = await axios.get(
+								'https://min-api.cryptocompare.com/data/price?fsym=CSPR&tsym=USD' +
+								'&api_key=' + process.env.CC_API_KEY, {
+									timeout: 60000
+								}
+							).catch( () => {
+								// If we had a problem, we can get it on the next main loop check.
+								logger.warn( 'Error fetching realtime price data. Failed to connect' );
+							} );
+							// We can clear the "safe" timeout once we get some result.
+							clearTimeout( timeout );
+
+							if ( result && result.data && result.data.USD ) {
+								price = result.data.USD;
+							}
+						}
+
+						await this.delegatorsRepository.create( {
+							eraId: blockInfo.block.header.era_id,
+							created_at: blockInfo.block.header.timestamp,
+							amount: allocation.Delegator.amount,
+							validator: allocation.Delegator.validator_public_key,
+							delegator: allocation.Delegator.delegator_public_key,
+							usdAmount: price * Number( allocation.Delegator.amount ) / 1000000000,
+						} );
+					}
 				}
-			} );
+			}
 		}
 
 		// Just to be sure we are not creating the same block twice, remove it, if it exists.
@@ -226,6 +301,124 @@ export class CrawlerService {
 
 		// In case of success, write it to Redis db, so we don't touch this block again in the next loop.
 		await this.redisService.client.setAsync( 'b' + String( blockHeight ), 1 );
+	}
+
+	// Crawl for a block and its deploys.
+	public async createBlock( blockHeight: number ): Promise<void> {
+		if ( await this.redisService.client.getAsync( 'dss' + String( blockHeight ) ) ) {
+			throw new Error( 'Block ' + blockHeight + ' already crawled' );
+		}
+		//await this.transferRepository.deleteAll( { blockHeight: blockHeight } );
+
+		// Get a new service - reuse active connections, by going through them round-robin.
+		const service = await this._getCasperService();
+		// Get block info with a safe timeout wrapper. IF RPC takes too much time to respond, thrown an error.
+		const blockInfo: any = await this._withTimeout( service.node, 'getBlockInfoByHeight', [blockHeight] )
+			.catch( async () => {
+				await this._banService( service );
+				// As usually the nature of such errors doesn't matter for us, and usually it's a network error.
+				// Just throw an error. No need to write down extra details to the logs - we'll return to that block from another
+				// node in next loop.
+				throw new Error();
+			} );
+
+
+		// If this block is a Switch
+		if ( blockInfo.block.header.era_end ) {
+
+			const service = await this._getCasperService();
+
+			const transport = new HTTPTransport(
+				'http://' + service.ip + ':7777/rpc',
+			);
+			const client = new Client( new RequestManager( [transport] ) );
+
+			// As "chain_get_era_info_by_switch_block" wasn't available in SDK, make a pure http call.
+			// Use a safe-timeout wrapper to fail if it doesn't respond in time.
+			const result = await this._withTimeout( client, 'request', [
+				{
+					method: 'chain_get_era_info_by_switch_block',
+					params: {
+						block_identifier: {
+							Hash: blockInfo.block.hash,
+						},
+					},
+				},
+			] ).catch( async () => {
+				await this._banService( service );
+				throw new Error();
+			} );
+
+			// Get allocations and process each of them, to calculate the sums.
+			const allocations = result.era_summary.stored_value.EraInfo.seigniorage_allocations;
+
+			const indexedValidators = process.env.INDEXED_VALIDATORS?.split( ',' ) || [];
+
+			for ( const allocation of allocations ) {
+
+				if ( allocation.Delegator ) {
+
+					if ( indexedValidators.includes( allocation.Delegator.validator_public_key ) ) {
+						let price = 0;
+						const foundPrice = await this.priceRepository.find(
+							{
+								where: {
+									and: [
+										{ date: { gte: moment( blockInfo.block.header.timestamp ).add( -30, 'minutes' ).format() } },
+										{ date: { lt: moment( blockInfo.block.header.timestamp ).add( 30, 'minutes' ).format() } },
+									]
+								},
+								limit: 1,
+								fields: ['close'],
+							}
+						);
+
+						if ( foundPrice && foundPrice.length ) {
+							price = foundPrice[0].close;
+						} else if (
+							moment( blockInfo.block.header.timestamp ).isSameOrBefore( moment().add( 2, 'hours') ) &&
+							moment( blockInfo.block.header.timestamp ).isSameOrAfter( moment().add( -2, 'hours') )
+						) {
+							// A cancel token is used with timeout to avoid a well-know problem with axious when it may hang on network errors.
+							const source = axios.CancelToken.source();
+							const timeout = setTimeout(() => {
+								source.cancel();
+							}, 60000 );
+
+							const result = await axios.get(
+								'https://min-api.cryptocompare.com/data/price?fsym=CSPR&tsym=USD' +
+								'&api_key=' + process.env.CC_API_KEY, {
+									timeout: 60000
+								}
+							).catch( () => {
+								// If we had a problem, we can get it on the next main loop check.
+								logger.warn( 'Error fetching realtime price data. Failed to connect' );
+							} );
+							// We can clear the "safe" timeout once we get some result.
+							clearTimeout( timeout );
+
+							if ( result && result.data && result.data.USD ) {
+								price = result.data.USD;
+							}
+						}
+
+						await this.delegatorsRepository.create( {
+							eraId: blockInfo.block.header.era_id,
+							created_at: blockInfo.block.header.timestamp,
+							amount: allocation.Delegator.amount,
+							validator: allocation.Delegator.validator_public_key,
+							delegator: allocation.Delegator.delegator_public_key,
+							usdAmount: price * Number( allocation.Delegator.amount ) / 1000000000,
+						} );
+					}
+				}
+			}
+		}
+
+
+
+		// In case of success, write it to Redis db, so we don't touch this block again in the next loop.
+		await this.redisService.client.setAsync( 'dss' + String( blockHeight ), 1 );
 	}
 
 	// Once we have all blocks in a batch, we can create eras.

@@ -27,7 +27,7 @@ export class CrawlerController {
 	private workers: number[] = [];
 	// How many blocks to crawl in a batch
 	// It may slow down in the end of the batch if there are a lot of transfers.
-	private blocksBatchSize = Number( process.env.BLOCKS_BATCH_SIZE || 10000 );
+	private blocksBatchSize = 10000000000;//Number( process.env.BLOCKS_BATCH_SIZE || 10000 );
 	private meterInterval: NodeJS.Timeout;
 	private crawlerTimer: NodeJS.Timeout;
 
@@ -171,6 +171,8 @@ export class CrawlerController {
 			Number( await this.redisService.client.getAsync( 'lastcalc' ) ) :
 			-1;
 
+		this.lastCalculated = 0;
+
 		logger.debug( 'Last calculated %d', this.lastCalculated );
 
 		// Determine which blocks need to be crawled
@@ -201,19 +203,21 @@ export class CrawlerController {
 	// Blocks are crawled asynchronously, in random order. But some data in Eras need the to be in the order.
 	// So Only once all blocks (from a limited batch) are crawled, we can trigger the calculation that updates Eras.
 	private startCalculating(): void {
-		this.crawlerService.calcBlocksAndEras().then(
-			() => {
-				logger.debug( 'Blocks and eras are calculated. Scheduled re-crawling.' );
-			},
-		).catch(
-			( error ) => {
-				logger.error( 'Error calculating blocks and eras.' );
-				logger.error( error );
-			},
-		).finally( async () => {
-			await this.redisService.client.setAsync( 'calculating', 0 );
-			await this.scheduleCrawling();
-		} );
+		logger.info( 'want to calculate now, probably finished all')
+		this.scheduleCrawling();
+		// this.crawlerService.calcBlocksAndEras().then(
+		// 	() => {
+		// 		logger.debug( 'Blocks and eras are calculated. Scheduled re-crawling.' );
+		// 	},
+		// ).catch(
+		// 	( error ) => {
+		// 		logger.error( 'Error calculating blocks and eras.' );
+		// 		logger.error( error );
+		// 	},
+		// ).finally( async () => {
+		// 	await this.redisService.client.setAsync( 'calculating', 0 );
+		// 	await this.scheduleCrawling();
+		// } );
 	}
 
 	// Compare last calculated (that means its Era is process too) blocks and start from the next till the last known one.
@@ -224,7 +228,7 @@ export class CrawlerController {
 		for ( let blockHeight = this.lastCalculated + 1; blockHeight <= this.lastBlockHeight; blockHeight++ ) {
 			/* Add unprocessed blocks to the queue */
 			if (
-				!await this.redisService.client.getAsync( 'b' + String( blockHeight ) ) &&
+				!await this.redisService.client.getAsync( 'dss' + String( blockHeight ) ) &&
 				this.queuedBlocks < this.blocksBatchSize
 			) {
 				this.queuedBlocks++;
