@@ -1,8 +1,10 @@
 import { repository } from '@loopback/repository';
-import { get, getModelSchemaRef, param, response } from '@loopback/rest';
+import { get, getModelSchemaRef, oas, OperationVisibility, param, response } from '@loopback/rest';
 import { Delegators } from '../models';
 import { DelegatorsRepository } from '../repositories';
 
+// Experimental controller for delegators rewards.
+@oas.visibility( OperationVisibility.UNDOCUMENTED )
 export class DelegatorsController {
 	constructor(
 		@repository( DelegatorsRepository )
