@@ -80,6 +80,8 @@ export class CrawlerController {
 
 	// By this cass beeing a lifeCycleObserver it starts this method automatically.
 	public async start(): Promise<void> {
+		await this.crawlerService.fixMissingPrices();
+
 		// Set off the calculating flag.
 		await this.redisService.client.setAsync( 'calculating', 0 );
 

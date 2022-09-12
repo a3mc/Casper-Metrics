@@ -315,6 +315,33 @@ export class CrawlerService {
 		await this.redisService.client.setAsync( 'b' + String( blockHeight ), 1 );
 	}
 
+	public async fixMissingPrices(): Promise<void> {
+		const zeroPrices = await this.delegatorsRepository.find( {
+			where: {
+				usdAmount: 0,
+				eraId: { gt: 6000 },
+			}
+		} );
+		if ( zeroPrices && zeroPrices.length ) {
+			for ( const zeroPrice of zeroPrices ) {
+				const price = await this.priceRepository.findOne( {
+					where: {
+						and: [
+							{ date: { gte: moment( zeroPrice.created_at ).add( -30, 'minutes' ).format() } },
+							{ date: { lt: moment( zeroPrice.created_at ).add( 30, 'minutes' ).format() } },
+						],
+					},
+					limit: 1,
+					fields: ['close'],
+				},);
+				if ( price && price.close ) {
+					zeroPrice.usdAmount = price.close * Number( zeroPrice.amount ) / 1000000000;
+					await this.delegatorsRepository.updateById( zeroPrice.id, zeroPrice );
+				}
+			}
+		}
+	}
+
 	// Once we have all blocks in a batch, we can create eras.
 	public async calcBlocksAndEras(): Promise<void> {
 		// Set a flag that we started to create eras. No need to crawl new blocks at the same time.
