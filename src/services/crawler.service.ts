@@ -295,12 +295,13 @@ export class CrawlerService {
 			}
 		} );
 		if ( zeroPrices && zeroPrices.length ) {
+			logger.debug( 'Fixing missing prices for ' + zeroPrices.length + ' delegators' );
 			for ( const zeroPrice of zeroPrices ) {
 				const price = await this.priceRepository.findOne( {
 					where: {
 						and: [
-							{ date: { gte: moment( zeroPrice.created_at ).add( -30, 'minutes' ).format() } },
-							{ date: { lt: moment( zeroPrice.created_at ).add( 30, 'minutes' ).format() } },
+							{ date: { gte: moment( zeroPrice.created_at ).utc().add( -30, 'minutes' ).format() } },
+							{ date: { lt: moment( zeroPrice.created_at ).utc().add( 30, 'minutes' ).format() } },
 						],
 					},
 					limit: 1,
