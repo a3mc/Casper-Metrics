@@ -233,34 +233,6 @@ export class CrawlerService {
 
 						if ( foundPrice && foundPrice.length ) {
 							price = foundPrice[0].close;
-						} else if (
-							moment( blockInfo.block.header.timestamp ).utc().isSameOrBefore( moment().utc().add( 2, 'hours' ) ) &&
-							moment( blockInfo.block.header.timestamp ).utc().isSameOrAfter( moment().utc().add( -2, 'hours' ) )
-						) {
-							logger.debug( 'Price not found, fetching realtime price.' );
-							// A cancel token is used with timeout to avoid a well-know problem with axios when it may hang on network errors.
-							const source = axios.CancelToken.source();
-							const timeout = setTimeout( () => {
-								source.cancel();
-							}, 60000 );
-
-							const result = await axios.get(
-								'https://min-api.cryptocompare.com/data/price?fsym=CSPR&tsym=USD' +
-								'&api_key=' + process.env.CC_API_KEY, {
-									timeout: 60000,
-								},
-							).catch( () => {
-								// If we had a problem, we can get it on the next main loop check.
-								logger.warn( 'Error fetching realtime price data. Failed to connect' );
-							} );
-							// We can clear the "safe" timeout once we get some result.
-							clearTimeout( timeout );
-
-							if ( result && result.data && result.data.USD ) {
-								price = result.data.USD;
-							}
-
-							logger.debug( 'Realtime price fetched: ' + price );
 						}
 
 						if ( ( await this.delegatorsRepository.find( {
