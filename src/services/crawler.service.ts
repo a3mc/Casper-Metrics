@@ -234,10 +234,11 @@ export class CrawlerService {
 						if ( foundPrice && foundPrice.length ) {
 							price = foundPrice[0].close;
 						} else if (
-							moment( blockInfo.block.header.timestamp ).isSameOrBefore( moment().add( 2, 'hours' ) ) &&
-							moment( blockInfo.block.header.timestamp ).isSameOrAfter( moment().add( -2, 'hours' ) )
+							moment( blockInfo.block.header.timestamp ).utc().isSameOrBefore( moment().utc().add( 2, 'hours' ) ) &&
+							moment( blockInfo.block.header.timestamp ).utc().isSameOrAfter( moment().utc().add( -2, 'hours' ) )
 						) {
-							// A cancel token is used with timeout to avoid a well-know problem with axious when it may hang on network errors.
+							logger.debug( 'Price not found, fetching realtime price.' );
+							// A cancel token is used with timeout to avoid a well-know problem with axios when it may hang on network errors.
 							const source = axios.CancelToken.source();
 							const timeout = setTimeout( () => {
 								source.cancel();
@@ -258,6 +259,8 @@ export class CrawlerService {
 							if ( result && result.data && result.data.USD ) {
 								price = result.data.USD;
 							}
+
+							logger.debug( 'Realtime price fetched: ' + price );
 						}
 
 						if ( ( await this.delegatorsRepository.find( {
