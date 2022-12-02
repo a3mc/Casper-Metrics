@@ -1,7 +1,7 @@
 ### Milestone Review Details
 
 
-1)Added an interface for displaying delegators rewards by the request from a large private investor.
+1) Added an interface for displaying delegators rewards by the request from a large private investor.
    Can be observed here: https://caspermetrics.io/accounting
 
 2) Shaped the API endpoints as per multiple requests. Increased limits and adjusted some endpoints to get switch blocks easily as requested by a community member.
