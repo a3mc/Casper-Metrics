@@ -56,7 +56,7 @@ export class Balance extends Entity {
 			nullable: 'N',
 		},
 	} )
-	denomAmount: number;
+	denomAmount: bigint | number;
 
 	@property( {
 		type: 'number',
