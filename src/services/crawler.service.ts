@@ -18,6 +18,7 @@ import {
 	KnownAccountRepository,
 	PeersRepository,
 	PriceRepository,
+	BalanceRepository,
 	TransferRepository,
 } from '../repositories';
 import { CirculatingService } from './circulating.service';
@@ -59,6 +60,7 @@ export class CrawlerService {
 		@repository( PeersRepository ) public peersRepository: PeersRepository,
 		@repository( DelegatorsRepository ) public delegatorsRepository: DelegatorsRepository,
 		@repository( PriceRepository ) public priceRepository: PriceRepository,
+		@repository( BalanceRepository ) public balanceRepository: BalanceRepository,
 		@service( RedisService ) public redisService: RedisService,
 		@service( CirculatingService ) public circulatingService: CirculatingService,
 	) {
@@ -151,7 +153,7 @@ export class CrawlerService {
 		// Get transfers, if transfer hashes are listed in the block info.
 		if ( blockInfo.block.body.transfer_hashes?.length ) {
 			transfers = blockInfo.block.body.transfer_hashes.length;
-			await this._processTransfers( blockInfo.block.body.transfer_hashes, blockHeight, eraId );
+			await this._processTransfers( blockInfo.block.body.transfer_hashes, blockHeight, eraId, blockInfo );
 		}
 
 		// Set some initial values for a new block.
@@ -564,7 +566,7 @@ export class CrawlerService {
 	}
 
 	// Use servers that didn't respond in time or had errors more rare.
-	private async _getCasperService(): Promise<CasperServiceSet> {
+	public async _getCasperService(): Promise<CasperServiceSet> {
 		if ( !this._casperServices.length ) {
 			throw new Error( 'No RPC services available.' );
 		}
@@ -597,7 +599,7 @@ export class CrawlerService {
 	}
 
 	// Throw an error if request takes too much time.
-	private async _withTimeout( call: any, method: string, param: any[] ): Promise<any> {
+	public async _withTimeout( call: any, method: string, param: any[] ): Promise<any> {
 		const timer = new Timeout();
 		try {
 			return await Promise.race( [
@@ -748,7 +750,7 @@ export class CrawlerService {
 	}
 
 	// We try to find HEX account values here when possible.
-	private async _processTransfers( transferHashes: string[], blockHeight: number, eraId: number ): Promise<void> {
+	private async _processTransfers( transferHashes: string[], blockHeight: number, eraId: number, blockInfo: any ): Promise<void> {
 
 		// Use a queue to put parallel tasks in it, that helps to boost performance.
 		const asyncQueue = [];
@@ -827,6 +829,55 @@ export class CrawlerService {
 										Number( this._denominate( BigInt( transfer.amount ) ) ),
 									),
 								} );
+
+								if ( blockInfo.block?.header?.state_root_hash ) {
+									try {
+										const accountHash = ( transfer.from || transfer.source ).replace( /^account-hash-/, '' );
+										const stateRootHash = blockInfo.block.header.state_root_hash;
+										const uref = await service.node.getAccountBalanceUrefByPublicKeyHash(
+											stateRootHash,
+											accountHash,
+										);
+										const accBalance = ( await service.node.getAccountBalance(
+											stateRootHash,
+											uref,
+										) ).toString();
+
+										const accountToHash = ( transfer.to || transfer.target ).replace( /^account-hash-/, '' );
+										const urefTo = await service.node.getAccountBalanceUrefByPublicKeyHash(
+											stateRootHash,
+											accountToHash,
+										);
+										const accBalanceTo = ( await service.node.getAccountBalance(
+											stateRootHash,
+											urefTo,
+										) ).toString();
+
+										// Save balances in repository.
+										await this.balanceRepository.create( {
+											account_hash: accountHash,
+											blockHeight: blockHeight,
+											amount: accBalance,
+											denomAmount: Math.round(
+												Number( this._denominate( BigInt( accBalance ) ) ),
+											),
+										} );
+										await this.balanceRepository.create( {
+											account_hash: accountToHash,
+											blockHeight: blockHeight,
+											amount: accBalanceTo,
+											denomAmount: Math.round(
+												Number( this._denominate( BigInt( accBalanceTo ) ) ),
+											),
+										} );
+
+									} catch ( error ) {
+										await this._banService( service );
+										throw new Error();
+									}
+
+								}
+
 							}
 						}
 					}
@@ -931,7 +982,7 @@ export class CrawlerService {
 	}
 
 	// Helper method to convert from motes.
-	private _denominate( amount: bigint ): bigint {
+	public _denominate( amount: bigint ): bigint {
 		return amount / BigInt( 1000000000 );
 	}
 

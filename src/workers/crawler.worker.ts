@@ -1,10 +1,12 @@
 import { service } from '@loopback/core';
+import { repository } from '@loopback/repository';
 import * as async from 'async';
 import dotenv from 'dotenv';
 import { MetricsDbDataSource } from '../datasources';
 import { logger } from '../logger';
 import {
 	BlockRepository, DelegatorsRepository,
+	BalanceRepository,
 	EraRepository,
 	KnownAccountRepository, PeersRepository, PriceRepository, ProcessingRepository,
 	TransferRepository,
@@ -132,6 +134,7 @@ new CrawlerWorker(
 		new PeersRepository( dataSource ),
 		new DelegatorsRepository( dataSource ),
 		new PriceRepository( dataSource ),
+		new BalanceRepository( dataSource ),
 		new RedisService(),
 		new CirculatingService(
 			new EraRepository( dataSource ),

@@ -10,3 +10,4 @@ export * from './peers.repository';
 export * from './admin-log.repository';
 export * from './processing.repository';
 export * from './delegators.repository';
+export * from './balance.repository';

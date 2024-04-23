@@ -1,7 +1,6 @@
 import { lifeCycleObserver, service } from '@loopback/core';
 import { repository } from '@loopback/repository';
 import dotenv from 'dotenv';
-import { finished } from 'stream';
 import { logger } from '../logger';
 import { BlockRepository, EraRepository, TransferRepository } from '../repositories';
 import { CrawlerService, GeodataService, PriceService, RedisService } from '../services';

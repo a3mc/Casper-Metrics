@@ -131,7 +131,7 @@ export class EraController {
 
 		let filter: Filter<Era> = {
 			// Defined the max limit of items to be returned.
-			limit: limit ? Math.min( limit, skip == 0 && order ? 10000 : maxLimit ) : 1,
+			limit: limit ? Math.min( limit, skip == 0 && order ? 20000 : maxLimit ) : 1,
 			order: order ? order : ['id DESC'],
 			skip: ( id !== undefined || blockHeight !== undefined || timestamp ) ? 0 : 1,
 			// Using a helper filter to find by block heights or timestamp

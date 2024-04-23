@@ -1,9 +1,11 @@
 import { authenticate, AuthenticationBindings } from '@loopback/authentication';
 import { inject, service } from '@loopback/core';
-import { repository } from '@loopback/repository';
+import { DataSource, repository } from '@loopback/repository';
 import { get, getModelSchemaRef, oas, OperationVisibility, param, post, requestBody, response } from '@loopback/rest';
 import { UserProfile } from '@loopback/security';
 import * as async from 'async';
+import { CasperServiceByJsonRPC } from 'casper-js-sdk';
+import { MetricsDbDataSource } from '../datasources';
 import { IncorrectData, NotAllowed, NotFound } from '../errors/errors';
 import { AdminLogServiceBindings } from '../keys';
 import { logger } from '../logger';
@@ -13,6 +15,10 @@ import { AdminLogService, CirculatingService } from '../services';
 
 const { Graph } = require( 'dsa.js' );
 const clone = require( 'node-clone-js' );
+
+const rpc = new CasperServiceByJsonRPC(
+	'http://' + process.env.REF_RPC_NODE + ':7777/rpc',
+);
 
 // REST API controller class for operations with Transfers, served by the Loopback framework.
 export class TransferController {
@@ -32,6 +38,8 @@ export class TransferController {
 		public processingRepository: ProcessingRepository,
 		@inject( AdminLogServiceBindings.ADMINLOG_SERVICE )
 		public adminLogService: AdminLogService,
+		//@inject( 'datasources.metricsDb' )
+		//public db: MetricsDbDataSource
 	) {
 	}
 
@@ -193,6 +201,182 @@ export class TransferController {
 		};
 	}
 
+	// Endpoint to find basic account details.
+	@get( 'account' )
+	@response( 200 )
+	async findAccountDetails(
+		@param.query.string( 'account' ) account: string,
+	): Promise<any> {
+		// Try to find the account in the known accounts.
+		const knownAccount = await this.knownAccountRepository.findOne( {
+			where: {
+				or: [
+					{ hex: account },
+					{ hex: account.toLowerCase() },
+					{ hash: account },
+					{ hash: account.toLowerCase() },
+					{ hash: 'account-hash-' + account },
+					{ hash: 'account-hash-' + account.toLowerCase() },
+				],
+			},
+		} );
+
+		if ( knownAccount ) {
+			return {
+				hash: knownAccount.hash,
+				hex: knownAccount.hex,
+				name: knownAccount.name,
+				comment: knownAccount.comment,
+			};
+		}
+
+		return new NotFound();
+	}
+
+	// Fetch account balance from RPC.
+	@get( 'accountBalance' )
+	@response( 200 )
+	async accountBalance(
+		@param.query.string( 'account' ) account: string,
+		@param.query.string( 'blockHeight' ) blockHeight: string,
+	): Promise<String> {
+		let block: any = {};
+		try {
+			block = blockHeight ? await rpc.getBlockInfoByHeight( parseInt( blockHeight ) ) : await rpc.getLatestBlockInfo();
+		} catch ( e: any ) {
+			throw new NotFound();
+		}
+		let accBalance: any = '0';
+
+		if ( block.block?.header?.state_root_hash ) {
+			const accountHash = account.replace( /^account-hash-/, '' );
+			const stateRootHash = block.block.header.state_root_hash;
+			const uref = await rpc.getAccountBalanceUrefByPublicKeyHash(
+				stateRootHash,
+				accountHash,
+			);
+			accBalance = await rpc.getAccountBalance(
+				stateRootHash,
+				uref,
+			);
+
+		} else {
+			logger.warn( 'Error fetching account balance' );
+		}
+
+		return accBalance.toString();
+	}
+
+	// Get accounts with names and/or comments.
+	@get( 'knownAccounts' )
+	@response( 200 )
+	async knownAccounts(): Promise<any> {
+
+		const knownAccounts = await this.knownAccountRepository.find(
+			{
+				where:
+				// @ts-ignore
+					{ name: { neq: null } },
+			},
+		);
+
+		return knownAccounts;
+	}
+
+	// Public endpoint to find all transactions for a given account.
+	@get( 'transfersByAccountHash' )
+	@response( 200, {
+		description: 'Array of Transfer model instances',
+		content: {
+			'application/json': {
+				schema: {
+					type: 'array',
+					items: getModelSchemaRef( Transfer, { includeRelations: false } ),
+				},
+			},
+		},
+	} )
+	async findByAccount(
+		@param.query.string( 'account' ) account: string,
+	): Promise<any> {
+		// Set the default filter - to draw the tree of initial transfers.
+		let filterTo: any = {
+			where: {
+				or: [
+					{ toHash: account },
+					{ toHash: account.toLowerCase() },
+				],
+			},
+			fields: ['amount', 'denomAmount', 'toHash', 'fromHash', 'deployHash', 'to', 'from', 'blockHeight', 'eraId', 'timestamp'],
+		};
+
+		let filterFrom: any = {
+			where: {
+				or: [
+					{ fromHash: account },
+					{ fromHash: account.toLowerCase() },
+				],
+
+			},
+			fields: ['amount', 'denomAmount', 'toHash', 'fromHash', 'deployHash', 'to', 'from', 'blockHeight', 'eraId', 'timestamp'],
+		};
+
+		let transfersTo: any = await this.transferRepository.find( filterTo );
+		let transfersFrom: any = await this.transferRepository.find( filterFrom );
+		let transfers = [...transfersTo, ...transfersFrom];
+
+		const transfersToCount = transfersTo.length;
+		const transfersFromCount = transfersFrom.length;
+		const transfersCount = transfers.length;
+		const transfersToSum = transfersTo.reduce( ( a: any, b: any ) => {
+			return a + parseInt( b.amount );
+		}, 0 );
+		const transfersFromSum = transfersFrom.reduce( ( a: any, b: any ) => {
+			return a + parseInt( b.amount );
+		}, 0 );
+
+		// Sort the results so the greater amounts are displayed first.
+		// Other can be cut if hit the limit.
+		transfers.sort( ( a: any, b: any ) => {
+			if ( parseInt( a.amount ) > parseInt( b.amount ) ) {
+				return -1;
+			}
+			if ( parseInt( a.amount ) < parseInt( b.amount ) ) {
+				return 1;
+			} else {
+				return 0;
+			}
+		} );
+
+		if ( transfersCount > 200 ) {
+			transfers = transfers.slice( 0, 200 );
+		}
+
+		// Create duplicate nodes for a DAG diagram when there's a cycle of transfers within one Era.
+		// Duplicate accounts get prefixed with "dub-". That makes it possible to visibly represent the flow.
+		if ( transfers.length ) {
+			const graph: any = new Graph( Graph.DIRECTED );
+			for ( const transfer of transfers ) {
+				graph.addEdge( transfer.fromHash, transfer.toHash );
+			}
+			for ( const transfer of transfers ) {
+				if ( graph.findPath( transfer.toHash, transfer.fromHash ).length > 0 ) {
+					transfer.toHash = 'dub-' + transfer.toHash;
+					transfer.dublicate = true;
+				}
+			}
+		}
+
+		return {
+			transfers: transfers,
+			count: transfersCount,
+			countTo: transfersToCount,
+			countFrom: transfersFromCount,
+			transfersToSum: transfersToSum,
+			transfersFromSum: transfersFromSum,
+		};
+	}
+
 	// Simple admin-only protected endpoint for getting data for the visual tree.
 	@oas.visibility( OperationVisibility.UNDOCUMENTED )
 	@authenticate( { strategy: 'jwt' } )
@@ -330,7 +514,7 @@ export class TransferController {
 					{ hex: account.hash.toLowerCase() },
 					{ hash: account.hash },
 					{ hash: account.hash.toLowerCase() },
-				]
+				],
 			},
 		} );
 
@@ -476,7 +660,7 @@ export class TransferController {
 	}
 
 	// Process a batch of eras to update them with the new unlock values.
-	private async _processBatch( filter: any , currentUser: UserProfile, saveType = 1 ): Promise<void> {
+	private async _processBatch( filter: any, currentUser: UserProfile, saveType = 1 ): Promise<void> {
 		saveType = Number( saveType );
 
 		const outboundTransfers = await this.transferRepository.find( filter );
@@ -492,7 +676,7 @@ export class TransferController {
 		for ( const transfer of outboundTransfers ) {
 			asyncQueue.push( async () => {
 				await this.transferRepository.updateById( transfer.id, {
-					approved: !!saveType
+					approved: !!saveType,
 				} );
 				sum += Number( BigInt( transfer.amount ) / BigInt( 1000000000 ) );
 				txs.push( transfer.deployHash + '|' + transfer.denomAmount );
@@ -510,7 +694,7 @@ export class TransferController {
 		// Create an admin log record with the details of the action.
 		await this.adminLogService.write(
 			currentUser,
-			'Saved ' + outboundTransfers.length + ' TXs as ' + ( !!saveType ? 'not ' : '') + 'approved: ' + sum + ' CSPR',
+			'Saved ' + outboundTransfers.length + ' TXs as ' + ( !!saveType ? 'not ' : '' ) + 'approved: ' + sum + ' CSPR',
 			txs.join( ';' ),
 		);
 
