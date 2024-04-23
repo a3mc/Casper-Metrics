@@ -9,3 +9,4 @@ export * from './price.model';
 export * from './peers.model';
 export * from './admin-log.model';
 export * from './processing.model';
+export * from './balance.model';

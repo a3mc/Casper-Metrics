@@ -55,7 +55,7 @@
         "await-timeout": "^1.1.1",
         "axios": "^0.24.0",
         "bcryptjs": "^2.4.3",
-        "casper-js-sdk": "^2.9.1",
+        "casper-js-sdk": "^2.10.2",
         "coingecko-api": "^1.0.10",
         "dotenv": "^10.0.0",
         "dsa.js": "^2.7.6",
