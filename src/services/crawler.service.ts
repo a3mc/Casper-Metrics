@@ -3,6 +3,7 @@ import { repository } from '@loopback/repository';
 import { Client, HTTPTransport, RequestManager } from '@open-rpc/client-js';
 import * as async from 'async';
 import Timeout from 'await-timeout';
+import axios from 'axios';
 import { CasperServiceByJsonRPC } from 'casper-js-sdk';
 import dotenv from 'dotenv';
 import moment from 'moment';
@@ -11,11 +12,13 @@ import { BlockStakeInfo } from '../controllers';
 import { logger } from '../logger';
 import { Block, Era, Transfer } from '../models';
 import {
-	BalanceRepository,
 	BlockRepository,
+	DelegatorsRepository,
 	EraRepository,
 	KnownAccountRepository,
 	PeersRepository,
+	PriceRepository,
+	BalanceRepository,
 	TransferRepository,
 } from '../repositories';
 import { CirculatingService } from './circulating.service';
@@ -48,13 +51,15 @@ export class CrawlerService {
 	// Allow to launch multiple async tasks when querying for transfers information.
 	private _transfersParallelLimit = Number( process.env.TRANSFERS_PARALLEL_LIMIT || 10 );
 
-	// It depends on the repositories to get and save the data and Redis and Cirulating Service.
+	// It depends on the repositories to get and save the data and Redis and Circulating Service.
 	constructor(
 		@repository( EraRepository ) public eraRepository: EraRepository,
 		@repository( BlockRepository ) public blocksRepository: BlockRepository,
 		@repository( TransferRepository ) public transferRepository: TransferRepository,
 		@repository( KnownAccountRepository ) public knownAccountRepository: KnownAccountRepository,
 		@repository( PeersRepository ) public peersRepository: PeersRepository,
+		@repository( DelegatorsRepository ) public delegatorsRepository: DelegatorsRepository,
+		@repository( PriceRepository ) public priceRepository: PriceRepository,
 		@repository( BalanceRepository ) public balanceRepository: BalanceRepository,
 		@service( RedisService ) public redisService: RedisService,
 		@service( CirculatingService ) public circulatingService: CirculatingService,
@@ -162,7 +167,7 @@ export class CrawlerService {
 		// If this block is a Switch
 		if ( blockInfo.block.header.era_end ) {
 			isSwitchBlock = true;
-			// Get the wheigts
+			// Get the weights
 			nextEraValidatorsWeights = this._denominate( await this._getValidatorsWeights(
 				blockInfo.block.header.era_end.next_era_validator_weights,
 			) );
@@ -193,7 +198,9 @@ export class CrawlerService {
 			// Get allocations and process each of them, to calculate the sums.
 			const allocations = result.era_summary.stored_value.EraInfo.seigniorage_allocations;
 
-			allocations.forEach( ( allocation: any ) => {
+			const indexedValidators = process.env.INDEXED_VALIDATORS?.split( ',' ) || [];
+
+			for ( const allocation of allocations ) {
 				if ( allocation.Validator ) {
 					validatorsCount++;
 					validatorsSum += BigInt( allocation.Validator.amount );
@@ -201,8 +208,54 @@ export class CrawlerService {
 				if ( allocation.Delegator ) {
 					delegatorsCount++;
 					delegatorsSum += BigInt( allocation.Delegator.amount );
+
+					if (
+						indexedValidators.includes( allocation.Delegator.validator_public_key ) &&
+						( await this.delegatorsRepository.find( {
+							where: {
+								eraId: eraId,
+								validator: allocation.Delegator.validator_public_key,
+								delegator: allocation.Delegator.delegator_public_key,
+							},
+						} ) ).length === 0
+					) {
+						let price = 0;
+						const foundPrice = await this.priceRepository.find(
+							{
+								where: {
+									and: [
+										{ date: { gte: moment( blockInfo.block.header.timestamp ).add( -30, 'minutes' ).format() } },
+										{ date: { lt: moment( blockInfo.block.header.timestamp ).add( 30, 'minutes' ).format() } },
+									],
+								},
+								limit: 1,
+								fields: ['close'],
+							},
+						);
+
+						if ( foundPrice && foundPrice.length ) {
+							price = foundPrice[0].close;
+						}
+
+						if ( ( await this.delegatorsRepository.find( {
+							where: {
+								eraId: blockInfo.block.header.era_id,
+								validator: allocation.Delegator.validator_public_key,
+								delegator: allocation.Delegator.delegator_public_key,
+							},
+						} ) ).length === 0 ) {
+							await this.delegatorsRepository.create( {
+								eraId: blockInfo.block.header.era_id,
+								created_at: blockInfo.block.header.timestamp,
+								amount: allocation.Delegator.amount,
+								validator: allocation.Delegator.validator_public_key,
+								delegator: allocation.Delegator.delegator_public_key,
+								usdAmount: price * Number( allocation.Delegator.amount ) / 1000000000,
+							} );
+						}
+					}
 				}
-			} );
+			}
 		}
 
 		// Just to be sure we are not creating the same block twice, remove it, if it exists.
@@ -234,6 +287,34 @@ export class CrawlerService {
 
 		// In case of success, write it to Redis db, so we don't touch this block again in the next loop.
 		await this.redisService.client.setAsync( 'b' + String( blockHeight ), 1 );
+	}
+
+	public async fixMissingPrices(): Promise<void> {
+		const zeroPrices = await this.delegatorsRepository.find( {
+			where: {
+				usdAmount: 0,
+				eraId: { gt: 6000 },
+			}
+		} );
+		if ( zeroPrices && zeroPrices.length ) {
+			logger.debug( 'Fixing missing prices for ' + zeroPrices.length + ' delegators' );
+			for ( const zeroPrice of zeroPrices ) {
+				const price = await this.priceRepository.findOne( {
+					where: {
+						and: [
+							{ date: { gte: moment( zeroPrice.created_at ).utc().add( -30, 'minutes' ).format() } },
+							{ date: { lt: moment( zeroPrice.created_at ).utc().add( 30, 'minutes' ).format() } },
+						],
+					},
+					limit: 1,
+					fields: ['close'],
+				},);
+				if ( price && price.close ) {
+					zeroPrice.usdAmount = price.close * Number( zeroPrice.amount ) / 1000000000;
+					await this.delegatorsRepository.updateById( zeroPrice.id, zeroPrice );
+				}
+			}
+		}
 	}
 
 	// Once we have all blocks in a batch, we can create eras.

@@ -1,7 +1,6 @@
 import { lifeCycleObserver, service } from '@loopback/core';
 import { repository } from '@loopback/repository';
 import dotenv from 'dotenv';
-import { finished } from 'stream';
 import { logger } from '../logger';
 import { BlockRepository, EraRepository, TransferRepository } from '../repositories';
 import { CrawlerService, GeodataService, PriceService, RedisService } from '../services';
@@ -102,6 +101,9 @@ export class CrawlerController {
 
 	// Start crawling only if there are any registered workeds and calculating phase is not in progress.
 	private async crawl() {
+		// Fix delegator rewards records if they miss price.
+		await this.crawlerService.fixMissingPrices();
+
 		// We store a flag if crawling is in progress.
 		if (
 			!!Number( await this.redisService.client.getAsync( 'calculating' ) ) ||
